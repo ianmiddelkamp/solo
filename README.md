@@ -5,7 +5,7 @@
 
 A Rails 8 API-only backend for Solo, a freelance invoicing and time tracking application. Handles clients, projects, charge codes, time tracking, task management, estimates, invoice generation with PDF output, file attachments, SOW import via AI, and email delivery.
 
-**Frontend:** [ianmiddelkamp/solo_frontend](https://github.com/ianmiddelkamp/solo_frontend)
+**Frontend:** React/TypeScript SPA in [`frontend/`](frontend/) — served by the Docker stack on port 5173.
 
 ## Tech Stack
 
@@ -63,6 +63,14 @@ Fill in values before starting.
 ```bash
 docker compose up -d
 ```
+
+This starts all services. On first run the frontend container installs its dependencies (~1 min before the UI is ready).
+
+| Service | URL |
+|---------|-----|
+| Rails API | http://localhost:3000 |
+| React frontend | http://localhost:5173 |
+| Letter Opener (dev email) | http://localhost:3000/letter_opener |
 
 ### First Run — Pull the AI Model
 
@@ -283,6 +291,94 @@ http://localhost:3000/letter_opener
 ### Invoice Statuses
 
 `pending` → `sent` → `paid`
+
+## Frontend
+
+The React SPA lives in [`frontend/`](frontend/) and is served by the Docker stack on port 5173. It is a single-page app — all routes resolve to `index.html`.
+
+### Tech Stack
+
+- **React** 19
+- **React Router** 7 — client-side routing
+- **Tailwind CSS** 3 — utility-first styling
+- **@dnd-kit** — drag-to-reorder for task groups and tasks
+- **Luxon** — date/time handling
+- **Vite** — build tooling and dev server
+
+### Pages and Routes
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | — | Redirects to `/clients` |
+| `/clients` | ClientList | View all clients |
+| `/clients/new` | ClientForm | Create a new client |
+| `/clients/:id/edit` | ClientForm | Edit an existing client |
+| `/projects` | ProjectList | View all projects |
+| `/projects/new` | ProjectForm | Create a new project |
+| `/projects/:id/edit` | ProjectForm | Edit project, manage task board (with SOW import), manage attachments |
+| `/timesheets` | TimesheetList | View all time entries with filters, sorting, selection, and invoice actions |
+| `/timesheets/new` | TimesheetForm | Log a new time entry against a project or charge code |
+| `/timesheets/:id/edit` | TimesheetForm | Edit a time entry |
+| `/timer` | TimerPage | Start/stop timer, select project and task |
+| `/invoices` | InvoiceList | View all invoices with status badges |
+| `/invoices/new` | InvoiceForm | Select unbilled entries and generate an invoice |
+| `/invoices/:id` | InvoiceDetail | View line items, send, download, or regenerate PDF |
+| `/estimates` | EstimateList | View all estimates |
+| `/estimates/new` | EstimateForm | Generate an estimate from project tasks |
+| `/estimates/:id` | EstimateDetail | View and send an estimate |
+| `/charge-codes` | ChargeCodesPage | Manage charge codes for non-project billable time |
+| `/settings` | SettingsPage | Configure business profile |
+
+### Project Structure
+
+```
+frontend/src/
+  api/              # API client modules (one per resource)
+  components/       # Shared components (Layout, TaskBoard, Timer, dialogs, etc.)
+  context/          # TimerContext — shared timer state across pages
+  pages/
+    auth/
+    clients/
+    charge-codes/
+    estimates/
+    invoices/
+    projects/
+    settings/
+    timesheets/
+    timer/
+  services/
+    dialog.js       # Promise-based confirm/alert dialog service
+  utils/
+    dates.js        # Date formatting and calculation helpers
+```
+
+### API Configuration
+
+The frontend connects to `http://localhost:3000` by default. To point to a different backend, set `VITE_API_URL`:
+
+```bash
+VITE_API_URL=http://your-api-host npm start
+```
+
+### Building for Production
+
+```bash
+cd frontend && npm run build
+```
+
+Output goes to `frontend/build/`. Since this is a single-page app, the web server must serve `index.html` for all routes.
+
+### Timesheets
+
+Filter by client, project, and billing status (all / unbilled / invoiced), with an option to hide charge code entries. All columns are sortable. Selecting unbilled entries from the same client activates a **Create Invoice** button that carries the selection into the invoice form. Invoiced entries are locked (no edit or delete).
+
+### Timer Integration
+
+Select a project and optional task before starting. Starting the timer marks the task as In Progress. Stopping prompts to mark it Done. The active task is shown in the sidebar timer widget across all pages.
+
+### Dialog Service
+
+`src/services/dialog.js` provides `confirm()` and `alert()` as Promises rendered via `DialogProvider`. Used throughout the app instead of `window.confirm`.
 
 ## Models
 
