@@ -2,7 +2,8 @@ class ClientsController < ApplicationController
   before_action :set_client, only: [:show, :update, :destroy]
 
   def index
-    render json: Client.includes(:rates).order(:name).as_json(methods: :current_rate)
+    bp = BusinessProfile.for_user(@current_user)
+    render json: bp.clients.includes(:rates).order(:name).as_json(methods: :current_rate)
   end
 
   def show
@@ -10,7 +11,8 @@ class ClientsController < ApplicationController
   end
 
   def create
-    @client = Client.new(client_params)
+    bp = BusinessProfile.for_user(@current_user)
+    @client = bp.clients.new(client_params)
     if @client.save
       render json: @client.as_json(methods: :current_rate), status: :created
     else
@@ -34,7 +36,8 @@ class ClientsController < ApplicationController
   private
 
   def set_client
-    @client = Client.find(params[:id])
+    bp = BusinessProfile.for_user(@current_user)
+    @client = bp.clients.find(params[:id])
   end
 
   def client_params

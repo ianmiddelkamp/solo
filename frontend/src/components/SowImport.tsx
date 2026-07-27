@@ -2,10 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { parseSow } from '../api/sowImport';
 import { createTaskGroup, createTask } from '../api/tasks';
 
-interface SowPreview {
-  title: string;
-  tasks: { title: string }[];
-}
+type SowGroup = { title: string; tasks: { title: string }[] };
 
 interface Props {
   projectId: number;
@@ -20,7 +17,7 @@ export default function SowImport({ projectId, onImported }: Props) {
   const [parsingStatus, setParsingStatus] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [importing, setImporting] = useState(false);
-  const [preview, setPreview] = useState<SowPreview | null>(null);
+  const [preview, setPreview] = useState<SowGroup[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -47,8 +44,8 @@ export default function SowImport({ projectId, onImported }: Props) {
     setError(null);
     setPreview(null);
     try {
-      const group = await parseSow(projectId, fileOrText, setParsingStatus);
-      setPreview(group);
+      const groups = await parseSow(projectId, fileOrText, setParsingStatus);
+      setPreview(groups);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -56,34 +53,52 @@ export default function SowImport({ projectId, onImported }: Props) {
     }
   }
 
-  function removeTask(taskIdx: number) {
-    setPreview((prev) => prev ? { ...prev, tasks: prev.tasks.filter((_, j) => j !== taskIdx) } : null);
+  function removeTask(groupIdx: number, taskIdx: number) {
+    setPreview((prev) => prev
+      ? prev.map((g, i) => i === groupIdx ? { ...g, tasks: g.tasks.filter((_, j) => j !== taskIdx) } : g)
+      : null
+    );
   }
 
-  function updateGroupTitle(title: string) {
-    setPreview((prev) => prev ? { ...prev, title } : null);
+  function updateGroupTitle(groupIdx: number, title: string) {
+    setPreview((prev) => prev
+      ? prev.map((g, i) => i === groupIdx ? { ...g, title } : g)
+      : null
+    );
   }
 
-  function updateTaskTitle(taskIdx: number, title: string) {
-    setPreview((prev) => prev ? {
-      ...prev,
-      tasks: prev.tasks.map((t, j) => (j === taskIdx ? { ...t, title } : t)),
-    } : null);
+  function updateTaskTitle(groupIdx: number, taskIdx: number, title: string) {
+    setPreview((prev) => prev
+      ? prev.map((g, i) => i === groupIdx
+          ? { ...g, tasks: g.tasks.map((t, j) => j === taskIdx ? { ...t, title } : t) }
+          : g)
+      : null
+    );
+  }
+
+  function removeGroup(groupIdx: number) {
+    setPreview((prev) => prev ? prev.filter((_, i) => i !== groupIdx) : null);
   }
 
   async function handleImport() {
-    if (!preview?.tasks?.length) return;
+    if (!preview?.length) return;
     setImporting(true);
     setError(null);
     try {
-      const created = await createTaskGroup(projectId, { title: preview.title });
-      if (!created) return;
-      for (const task of preview.tasks) {
-        await createTask(projectId, created.id, { title: task.title });
+      let totalTasks = 0;
+      for (const group of preview) {
+        if (!group.tasks.length) continue;
+        const created = await createTaskGroup(projectId, { title: group.title });
+        if (!created) continue;
+        for (const task of group.tasks) {
+          await createTask(projectId, created.id, { title: task.title });
+          totalTasks++;
+        }
       }
       setPreview(null);
       setOpen(false);
       onImported?.();
+      console.log(`Imported ${preview.length} groups with ${totalTasks} tasks`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -96,6 +111,8 @@ export default function SowImport({ projectId, onImported }: Props) {
     setError(null);
     setOpen(false);
   }
+
+  const totalTasks = preview?.reduce((s, g) => s + g.tasks.length, 0) ?? 0;
 
   return (
     <div className="mt-6">
@@ -183,41 +200,56 @@ export default function SowImport({ projectId, onImported }: Props) {
           {preview && (
             <div>
               <p className="text-sm text-gray-600 mb-3">
-                Review the task group and edit before importing. Remove anything you don't need.
+                Review and edit {preview.length} group{preview.length !== 1 ? 's' : ''} before importing. Remove anything you don't need.
               </p>
-              <div className="bg-white rounded-lg border border-gray-200 p-3 max-h-96 overflow-y-auto">
-                <input
-                  value={preview.title}
-                  onChange={(e) => updateGroupTitle(e.target.value)}
-                  className="w-full font-semibold text-sm border-b border-gray-200 outline-none focus:border-indigo-400 bg-transparent py-0.5 mb-2"
-                />
-                <ul className="space-y-1">
-                  {preview.tasks.map((task, ti) => (
-                    <li key={ti} className="flex items-center gap-2">
-                      <span className="text-gray-300 text-xs">—</span>
+              <div className="space-y-3 max-h-[32rem] overflow-y-auto">
+                {preview.map((group, gi) => (
+                  <div key={gi} className="bg-white rounded-lg border border-gray-200 p-3">
+                    <div className="flex items-center gap-2 mb-2">
                       <input
-                        value={task.title}
-                        onChange={(e) => updateTaskTitle(ti, e.target.value)}
-                        className="flex-1 text-sm border-b border-gray-100 outline-none focus:border-indigo-400 bg-transparent py-0.5"
+                        value={group.title}
+                        onChange={(e) => updateGroupTitle(gi, e.target.value)}
+                        className="flex-1 font-semibold text-sm border-b border-gray-200 outline-none focus:border-indigo-400 bg-transparent py-0.5"
                       />
                       <button
-                        onClick={() => removeTask(ti)}
+                        onClick={() => removeGroup(gi)}
                         className="text-red-300 hover:text-red-500 text-xs flex-shrink-0"
+                        title="Remove group"
                       >
-                        ✕
+                        ✕ group
                       </button>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                    <ul className="space-y-1">
+                      {group.tasks.map((task, ti) => (
+                        <li key={ti} className="flex items-center gap-2">
+                          <span className="text-gray-300 text-xs">—</span>
+                          <input
+                            value={task.title}
+                            onChange={(e) => updateTaskTitle(gi, ti, e.target.value)}
+                            className="flex-1 text-sm border-b border-gray-100 outline-none focus:border-indigo-400 bg-transparent py-0.5"
+                          />
+                          <button
+                            onClick={() => removeTask(gi, ti)}
+                            className="text-red-300 hover:text-red-500 text-xs flex-shrink-0"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
 
               <div className="flex items-center gap-3 mt-4">
                 <button
                   onClick={handleImport}
-                  disabled={importing || !preview.tasks.length}
+                  disabled={importing || totalTasks === 0}
                   className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                 >
-                  {importing ? 'Importing…' : `Import ${preview.tasks.length} task${preview.tasks.length !== 1 ? 's' : ''}`}
+                  {importing
+                    ? 'Importing…'
+                    : `Import ${preview.length} group${preview.length !== 1 ? 's' : ''} · ${totalTasks} task${totalTasks !== 1 ? 's' : ''}`}
                 </button>
                 <button
                   onClick={() => setPreview(null)}

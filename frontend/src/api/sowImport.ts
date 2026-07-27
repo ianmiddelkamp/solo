@@ -6,7 +6,7 @@ export const parseSow = async (
   projectId: number,
   fileOrText: File | string,
   onStatus?: (msg: string) => void
-): Promise<{ title: string; tasks: { title: string }[] }> => {
+): Promise<{ title: string; tasks: { title: string }[] }[]> => {
   const body = new FormData();
   if (typeof fileOrText === 'string') {
     body.append('text', fileOrText);

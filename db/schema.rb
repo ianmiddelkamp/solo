@@ -10,11 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
-  # These are extensions that must be enabled in order to support this database
-  enable_extension "pg_catalog.plpgsql"
+ActiveRecord::Schema[8.1].define(version: 2026_07_27_161910) do
+  create_schema "extensions"
 
-  create_table "active_storage_attachments", force: :cascade do |t|
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "extensions.pg_stat_statements"
+  enable_extension "extensions.pgcrypto"
+  enable_extension "extensions.uuid-ossp"
+  enable_extension "pg_catalog.plpgsql"
+  enable_extension "vault.supabase_vault"
+
+  create_table "public.active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -24,7 +30,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
   end
 
-  create_table "active_storage_blobs", force: :cascade do |t|
+  create_table "public.active_storage_blobs", force: :cascade do |t|
     t.bigint "byte_size", null: false
     t.string "checksum"
     t.string "content_type"
@@ -36,13 +42,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
   end
 
-  create_table "active_storage_variant_records", force: :cascade do |t|
+  create_table "public.active_storage_variant_records", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
-  create_table "business_profiles", force: :cascade do |t|
+  create_table "public.business_profiles", force: :cascade do |t|
     t.string "address1"
     t.string "address2"
     t.string "city"
@@ -60,9 +66,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.string "state"
     t.decimal "tax_rate", precision: 5, scale: 2, default: "0.0", null: false
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["user_id"], name: "index_business_profiles_on_user_id", unique: true
   end
 
-  create_table "charge_codes", force: :cascade do |t|
+  create_table "public.cca_assets", force: :cascade do |t|
+    t.decimal "additions", precision: 10, scale: 2, default: "0.0"
+    t.bigint "business_profile_id", null: false
+    t.string "cca_class", null: false
+    t.decimal "cca_rate", precision: 5, scale: 2, null: false
+    t.decimal "cost", precision: 10, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.decimal "disposals", precision: 10, scale: 2, default: "0.0"
+    t.string "name", null: false
+    t.text "notes"
+    t.date "purchase_date", null: false
+    t.decimal "ucc_opening", precision: 10, scale: 2
+    t.datetime "updated_at", null: false
+    t.index ["business_profile_id"], name: "index_cca_assets_on_business_profile_id"
+  end
+
+  create_table "public.charge_codes", force: :cascade do |t|
     t.string "code", null: false
     t.datetime "created_at", null: false
     t.string "description"
@@ -73,9 +97,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["user_id"], name: "index_charge_codes_on_user_id"
   end
 
-  create_table "clients", force: :cascade do |t|
+  create_table "public.clients", force: :cascade do |t|
     t.string "address1"
     t.string "address2"
+    t.bigint "business_profile_id", null: false
     t.string "city"
     t.string "contact_name"
     t.string "country"
@@ -89,9 +114,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.string "sales_terms", default: "NET 15"
     t.string "state"
     t.datetime "updated_at", null: false
+    t.index ["business_profile_id"], name: "index_clients_on_business_profile_id"
   end
 
-  create_table "estimate_line_items", force: :cascade do |t|
+  create_table "public.estimate_line_items", force: :cascade do |t|
     t.decimal "amount", precision: 10, scale: 2, null: false
     t.datetime "created_at", null: false
     t.string "description"
@@ -105,7 +131,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["task_id"], name: "index_estimate_line_items_on_task_id"
   end
 
-  create_table "estimates", force: :cascade do |t|
+  create_table "public.estimates", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.jsonb "last_sent_snapshot"
     t.decimal "last_sent_total", precision: 10, scale: 2
@@ -116,7 +142,60 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["project_id"], name: "index_estimates_on_project_id"
   end
 
-  create_table "invoice_line_items", force: :cascade do |t|
+  create_table "public.expenses", force: :cascade do |t|
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.bigint "business_profile_id", null: false
+    t.string "category"
+    t.datetime "created_at", null: false
+    t.date "date", null: false
+    t.string "description", null: false
+    t.decimal "hst_paid", precision: 10, scale: 2, default: "0.0", null: false
+    t.text "notes"
+    t.string "receipt_url"
+    t.datetime "updated_at", null: false
+    t.string "vendor"
+    t.index ["business_profile_id"], name: "index_expenses_on_business_profile_id"
+    t.index ["date"], name: "index_expenses_on_date"
+  end
+
+  create_table "public.home_office_profiles", force: :cascade do |t|
+    t.bigint "business_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.decimal "monthly_internet", precision: 10, scale: 2
+    t.decimal "monthly_other", precision: 10, scale: 2
+    t.decimal "monthly_rent", precision: 10, scale: 2
+    t.decimal "monthly_utilities", precision: 10, scale: 2
+    t.text "notes"
+    t.integer "office_rooms"
+    t.decimal "office_sqft", precision: 8, scale: 2
+    t.integer "total_rooms"
+    t.decimal "total_sqft", precision: 8, scale: 2
+    t.datetime "updated_at", null: false
+    t.boolean "use_square_footage", default: false, null: false
+    t.index ["business_profile_id"], name: "index_home_office_profiles_on_business_profile_id", unique: true
+  end
+
+  create_table "public.hst_returns", force: :cascade do |t|
+    t.decimal "amount_paid", precision: 12, scale: 2
+    t.bigint "business_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "filed_at"
+    t.string "filing_reference"
+    t.decimal "hst_collected", precision: 12, scale: 2
+    t.decimal "input_tax_credits", precision: 12, scale: 2, default: "0.0"
+    t.decimal "net_tax", precision: 12, scale: 2
+    t.text "notes"
+    t.datetime "paid_at"
+    t.date "payment_due_date"
+    t.date "period_end", null: false
+    t.date "period_start", null: false
+    t.string "status", default: "draft", null: false
+    t.decimal "total_revenue", precision: 12, scale: 2
+    t.datetime "updated_at", null: false
+    t.index ["business_profile_id"], name: "index_hst_returns_on_business_profile_id"
+  end
+
+  create_table "public.invoice_line_items", force: :cascade do |t|
     t.decimal "amount", precision: 10, scale: 2
     t.datetime "created_at", null: false
     t.text "description"
@@ -130,7 +209,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["time_entry_id"], name: "index_invoice_line_items_on_time_entry_id"
   end
 
-  create_table "invoices", force: :cascade do |t|
+  create_table "public.invoices", force: :cascade do |t|
     t.decimal "amount_paid", precision: 10, scale: 2
     t.bigint "client_id", null: false
     t.datetime "created_at", null: false
@@ -144,7 +223,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["client_id"], name: "index_invoices_on_client_id"
   end
 
-  create_table "projects", force: :cascade do |t|
+  create_table "public.projects", force: :cascade do |t|
     t.bigint "client_id", null: false
     t.datetime "created_at", null: false
     t.text "description"
@@ -154,7 +233,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["client_id"], name: "index_projects_on_client_id"
   end
 
-  create_table "rates", force: :cascade do |t|
+  create_table "public.rates", force: :cascade do |t|
     t.bigint "client_id"
     t.datetime "created_at", null: false
     t.bigint "project_id"
@@ -166,7 +245,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["user_id"], name: "index_rates_on_user_id"
   end
 
-  create_table "task_groups", force: :cascade do |t|
+  create_table "public.task_groups", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "position"
     t.bigint "project_id", null: false
@@ -175,7 +254,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["project_id"], name: "index_task_groups_on_project_id"
   end
 
-  create_table "tasks", force: :cascade do |t|
+  create_table "public.tasks", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.decimal "estimated_hours", precision: 5, scale: 2
     t.integer "position"
@@ -186,7 +265,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["task_group_id"], name: "index_tasks_on_task_group_id"
   end
 
-  create_table "time_entries", force: :cascade do |t|
+  create_table "public.time_entries", force: :cascade do |t|
     t.bigint "charge_code_id"
     t.bigint "client_id"
     t.datetime "created_at", null: false
@@ -206,7 +285,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["user_id"], name: "index_time_entries_on_user_id"
   end
 
-  create_table "timer_sessions", force: :cascade do |t|
+  create_table "public.timer_sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "description"
     t.bigint "project_id", null: false
@@ -220,7 +299,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["user_id"], name: "index_timer_sessions_on_user_id"
   end
 
-  create_table "users", force: :cascade do |t|
+  create_table "public.users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.string "name", null: false
@@ -230,27 +309,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_151926) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
-  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "charge_codes", "users"
-  add_foreign_key "estimate_line_items", "estimates"
-  add_foreign_key "estimate_line_items", "tasks", on_delete: :nullify
-  add_foreign_key "estimates", "projects"
-  add_foreign_key "invoice_line_items", "invoices"
-  add_foreign_key "invoice_line_items", "time_entries"
-  add_foreign_key "invoices", "clients"
-  add_foreign_key "projects", "clients"
-  add_foreign_key "rates", "clients"
-  add_foreign_key "rates", "projects"
-  add_foreign_key "rates", "users"
-  add_foreign_key "task_groups", "projects"
-  add_foreign_key "tasks", "task_groups"
-  add_foreign_key "time_entries", "charge_codes"
-  add_foreign_key "time_entries", "clients"
-  add_foreign_key "time_entries", "projects"
-  add_foreign_key "time_entries", "tasks"
-  add_foreign_key "time_entries", "users"
-  add_foreign_key "timer_sessions", "projects"
-  add_foreign_key "timer_sessions", "tasks", on_delete: :nullify
-  add_foreign_key "timer_sessions", "users"
+  add_foreign_key "public.active_storage_attachments", "public.active_storage_blobs", column: "blob_id"
+  add_foreign_key "public.active_storage_variant_records", "public.active_storage_blobs", column: "blob_id"
+  add_foreign_key "public.business_profiles", "public.users"
+  add_foreign_key "public.cca_assets", "public.business_profiles"
+  add_foreign_key "public.charge_codes", "public.users"
+  add_foreign_key "public.clients", "public.business_profiles"
+  add_foreign_key "public.estimate_line_items", "public.estimates"
+  add_foreign_key "public.estimate_line_items", "public.tasks", on_delete: :nullify
+  add_foreign_key "public.estimates", "public.projects"
+  add_foreign_key "public.expenses", "public.business_profiles"
+  add_foreign_key "public.home_office_profiles", "public.business_profiles"
+  add_foreign_key "public.hst_returns", "public.business_profiles"
+  add_foreign_key "public.invoice_line_items", "public.invoices"
+  add_foreign_key "public.invoice_line_items", "public.time_entries"
+  add_foreign_key "public.invoices", "public.clients"
+  add_foreign_key "public.projects", "public.clients"
+  add_foreign_key "public.rates", "public.clients"
+  add_foreign_key "public.rates", "public.projects"
+  add_foreign_key "public.rates", "public.users"
+  add_foreign_key "public.task_groups", "public.projects"
+  add_foreign_key "public.tasks", "public.task_groups"
+  add_foreign_key "public.time_entries", "public.charge_codes"
+  add_foreign_key "public.time_entries", "public.clients"
+  add_foreign_key "public.time_entries", "public.projects"
+  add_foreign_key "public.time_entries", "public.tasks"
+  add_foreign_key "public.time_entries", "public.users"
+  add_foreign_key "public.timer_sessions", "public.projects"
+  add_foreign_key "public.timer_sessions", "public.tasks", on_delete: :nullify
+  add_foreign_key "public.timer_sessions", "public.users"
+
 end

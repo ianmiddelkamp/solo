@@ -81,6 +81,22 @@ function StatusSelect({ status, onChange }: StatusSelectProps) {
   );
 }
 
+interface EstimateTimeQuickSelection {
+  timeInMins: number;
+  label: string;
+}
+
+const quickSelections: EstimateTimeQuickSelection[] = [
+  { timeInMins: 5, label: '5 Mins' },
+  { timeInMins: 10, label: '10 Mins' },
+  { timeInMins: 15, label: '15 Mins' },
+  { timeInMins: 30, label: '30 Mins' },
+  { timeInMins: 45, label: '45 Mins' },
+  { timeInMins: 60, label: '1 Hour' },
+  { timeInMins: 90, label: '1.5 Hour' },
+  { timeInMins: 120, label: '2 Hour' },
+];
+
 interface TaskItemProps {
   task: Task;
   projectId: number;
@@ -134,6 +150,11 @@ function TaskItem({ task, projectId, groupId, onUpdate, onDelete, onSelect, sele
     }
     await updateTask(projectId, groupId, task.id, { estimated_hours: parsed });
     onUpdate(task.id, { estimated_hours: parsed });
+  }
+
+  function setQuickSelection(timeInMins: number) {
+    if (timeInMins <= 0) return;
+    setEstimate(String(timeInMins / 60));
   }
 
   async function handleDelete() {
@@ -195,21 +216,35 @@ function TaskItem({ task, projectId, groupId, onUpdate, onDelete, onSelect, sele
       <div className="mt-1.5 ml-6 flex items-center gap-3 flex-wrap">
         <StatusSelect status={task.status} onChange={handleStatusChange} />
         {editingEstimate ? (
-          <input
-            ref={estimateRef}
-            type="number"
-            min="0.01"
-            step="0.25"
-            value={estimate}
-            onChange={(e) => setEstimate(e.target.value)}
-            onBlur={commitEstimate}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitEstimate();
-              if (e.key === 'Escape') { setEstimate(task.estimated_hours != null ? String(task.estimated_hours) : ''); setEditingEstimate(false); }
-            }}
-            placeholder="0.00"
-            className="w-16 text-xs border-b border-indigo-400 outline-none bg-transparent text-gray-700"
-          />
+          <>
+            <input
+              ref={estimateRef}
+              type="number"
+              min="0.01"
+              step="0.25"
+              value={estimate}
+              onChange={(e) => setEstimate(e.target.value)}
+              onBlur={commitEstimate}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitEstimate();
+                if (e.key === 'Escape') { setEstimate(task.estimated_hours != null ? String(task.estimated_hours) : ''); setEditingEstimate(false); }
+              }}
+              placeholder="0.00"
+              className="w-16 text-xs border-b border-indigo-400 outline-none bg-transparent text-gray-700"
+            />
+            <div className="flex flex-wrap gap-1">
+              {quickSelections.map((qs) => (
+                <button
+                  key={qs.timeInMins}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); setQuickSelection(qs.timeInMins); }}
+                  className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-700 rounded"
+                >
+                  {qs.label}
+                </button>
+              ))}
+            </div>
+          </>
         ) : (
           <button
             onClick={() => setEditingEstimate(true)}

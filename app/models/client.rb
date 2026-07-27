@@ -1,4 +1,5 @@
 class Client < ApplicationRecord
+  belongs_to :business_profile
   has_many :projects
   has_many :invoices
   has_many :rates
