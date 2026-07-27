@@ -192,3 +192,89 @@ export interface Attachment {
   content_type: string;
   byte_size: number;
 }
+
+export interface Expense {
+  id: number;
+  date: string;
+  vendor: string | null;
+  description: string;
+  amount: number;
+  hst_paid: number;
+  category: string | null;
+  receipt_url: string | null;
+  receipt_blob_id: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface HstReturn {
+  id: number;
+  period_start: string;
+  period_end: string;
+  status: 'draft' | 'filed' | 'paid';
+  total_revenue: number | null;
+  hst_collected: number | null;
+  input_tax_credits: number;
+  net_tax: number | null;
+  filing_reference: string | null;
+  filed_at: string | null;
+  payment_due_date: string | null;
+  paid_at: string | null;
+  amount_paid: number | null;
+  notes: string | null;
+}
+
+export interface HstCalculation {
+  total_revenue: number;
+  hst_collected: number;
+  input_tax_credits: number;
+  net_tax: number;
+  invoice_count: number;
+}
+
+export interface CcaAsset {
+  id: number;
+  name: string;
+  cca_class: string;
+  cca_rate: number;
+  purchase_date: string;
+  cost: number;
+  ucc_opening: number | null;
+  additions: number;
+  disposals: number;
+  notes: string | null;
+  cca_deduction?: number;
+}
+
+export interface HomeOfficeProfile {
+  id: number;
+  total_rooms: number | null;
+  office_rooms: number | null;
+  monthly_rent: number | null;
+  monthly_utilities: number | null;
+  monthly_internet: number | null;
+  monthly_other: number | null;
+  use_square_footage: boolean;
+  total_sqft: number | null;
+  office_sqft: number | null;
+  notes: string | null;
+  business_use_percentage: number;
+  annual_deductible: number;
+}
+
+export interface T2125Report {
+  year: number;
+  business_name: string | null;
+  hst_number: string | null;
+  gross_revenue: number;
+  hst_collected: number;
+  hst_remitted: number;
+  net_revenue: number;
+  expenses_by_category: Record<string, number>;
+  total_expenses: number;
+  cca_details: { id: number; name: string; cca_class: string; cca_rate: number; deduction: number }[];
+  total_cca: number;
+  home_office_deduction: number;
+  home_office_percentage: number;
+  net_income: number;
+}

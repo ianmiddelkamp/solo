@@ -17,6 +17,12 @@ import EstimateDetail from './pages/estimates/EstimateDetail';
 import SettingsPage from './pages/settings/SettingsPage';
 import TimerPage from './pages/timer/TimerPage';
 import ChargeCodesPage from './pages/charge-codes/ChargeCodesPage';
+import ExpensesPage from './pages/expenses/ExpensesPage';
+import HstReturnsList from './pages/hst-returns/HstReturnsList';
+import HstReturnDetail from './pages/hst-returns/HstReturnDetail';
+import CcaSchedulePage from './pages/cca/CcaSchedulePage';
+import HomeOfficePage from './pages/home-office/HomeOfficePage';
+import T2125ReportPage from './pages/t2125/T2125ReportPage';
 import { getToken } from './api/index';
 import { TimerProvider } from './context/TimerContext';
 import { FeaturesProvider } from './context/FeaturesContext';
@@ -59,6 +65,13 @@ export default function App() {
           <Route path="timer" element={<TimerPage />} />
           <Route path="charge-codes" element={<ChargeCodesPage />} />
           <Route path="settings" element={<SettingsPage />} />
+
+          <Route path="expenses" element={<ExpensesPage />} />
+          <Route path="hst-returns" element={<HstReturnsList />} />
+          <Route path="hst-returns/:id" element={<HstReturnDetail />} />
+          <Route path="cca" element={<CcaSchedulePage />} />
+          <Route path="home-office" element={<HomeOfficePage />} />
+          <Route path="t2125" element={<T2125ReportPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

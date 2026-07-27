@@ -38,6 +38,19 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :expenses, except: [:new, :edit] do
+    collection { post :parse_receipt }
+    member { get :receipt }
+  end
+  resources :hst_returns, except: [:new, :edit] do
+    collection do
+      get :calculate
+    end
+  end
+  resources :cca_assets, except: [:new, :edit]
+  resource :home_office_profile, only: [:show, :update]
+  get "/t2125", to: "t2125#show"
+
   resources :charge_codes, except: [:new, :edit, :show]
   resources :time_entries, only: [:index, :show, :create, :update, :destroy]
 
