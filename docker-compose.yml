@@ -47,6 +47,7 @@ services:
       DB_NAME: invoice_dev
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SOW_PROVIDER: ${SOW_PROVIDER:-}
       SOW_API_KEY: ${SOW_API_KEY:-}
       SOW_OLLAMA_HOST: ${SOW_OLLAMA_HOST:-http://ollama:11434}
@@ -74,6 +75,7 @@ services:
       DB_NAME: invoice_dev
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SOW_PROVIDER: ${SOW_PROVIDER:-ollama}
       SOW_API_KEY: ${SOW_API_KEY:-}
       SOW_OLLAMA_HOST: ${SOW_OLLAMA_HOST:-http://ollama:11434}

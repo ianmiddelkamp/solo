@@ -12,7 +12,7 @@ class SowImporter
   PROVIDERS = {
     "anthropic" => {
       url:   "https://api.anthropic.com/v1/messages",
-      model: "claude-opus-4-6"
+      model: "claude-opus-4-8"
     },
     "gemini" => {
       url:   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
@@ -194,17 +194,22 @@ class SowImporter
     parsed
   end
 
+  MAX_GROUPS = ENV["SOW_MAX_GROUPS"]&.to_i
+
   def normalize(parsed)
-    group = parsed.is_a?(Hash) ? parsed : nil
-    raise "Unexpected response structure" unless group.is_a?(Hash) && group["title"].present? && group["tasks"].is_a?(Array)
-    group
+    groups = parsed.is_a?(Array) ? parsed : [parsed]
+    groups = groups.first(MAX_GROUPS) if MAX_GROUPS
+    groups.each do |g|
+      raise "Unexpected response structure" unless g.is_a?(Hash) && g["title"].present? && g["tasks"].is_a?(Array)
+    end
+    groups
   end
 
   def extract_json(text)
     return "" if text.blank?
     if (match = text.match(/```[^\n]*\n(.*?)```/m))
       match[1].strip
-    elsif (match = text.match(/(\{.*\})/m))
+    elsif (match = text.match(/(\[.*\]|\{.*\})/m))
       match[1].strip
     else
       text.strip
@@ -212,26 +217,27 @@ class SowImporter
   end
 
   def prompt(max_chars: 12000)
+    limit_line = MAX_GROUPS ? "Return at most #{MAX_GROUPS} group(s)." : ""
     <<~PROMPT
-      You are parsing a statement of work document into a single task group with a flat list of tasks.
+      You are parsing a statement of work document. Split the work into logical task groups by phase, section, or deliverable area.
 
-      Extract all work items from the document and return ONLY a JSON object with no explanation.
-      Give the group a concise, descriptive title based on the overall scope of the document.
+      Return ONLY a JSON array with no explanation, no markdown. #{limit_line}
 
-      Return this exact JSON structure:
-      {
-        "title": "Group name",
-        "tasks": [
-          { "title": "Task description" },
-          { "title": "Task description" }
-        ]
-      }
+      [
+        {
+          "title": "Phase 1 — Discovery",
+          "tasks": [
+            { "title": "Stakeholder interviews" },
+            { "title": "Requirements gathering" }
+          ]
+        }
+      ]
 
       Rules:
       - Keep task titles concise (under 100 characters)
       - Do not include pricing, dates, or payment terms as tasks
       - Do not include boilerplate legal text as tasks
-      - Return ONLY the JSON object, nothing else
+      - Return ONLY the JSON array, nothing else
 
       Document:
       ---
