@@ -41,17 +41,36 @@ services:
       timeout: 5s
       retries: 10
 
+  # Reverse proxy + TLS + static frontend, in one container. The only service with a `ports:`
+  # entry published beyond loopback — everything else (db_prod, redis_prod, web, sidekiq) is
+  # reachable only from other containers on this compose network, never directly from the
+  # internet. Caddy gets a real, browser-trusted Let's Encrypt cert automatically for
+  # ${FRONTEND_HOST} (no manual certbot steps) and reaches `web` internally at web:80.
+  caddy:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      FRONTEND_HOST: ${FRONTEND_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_started
+
   web:
     build:
       context: .
     image: invoice_app:latest
     restart: unless-stopped
-    # Bound to loopback only, not 0.0.0.0 — until Caddy is set up in front of this with TLS,
-    # this stays reachable only via an SSH tunnel (ssh -L 3000:localhost:3000 ...), never
-    # directly from the internet. Once Caddy exists, this mapping goes away entirely and Caddy
-    # reaches this container over the internal compose network instead (web:80).
-    ports:
-      - "127.0.0.1:3000:80"
+    # No `ports:` at all now — Caddy reaches this over the internal compose network (web:80).
+    # Not even loopback-published anymore, since Caddy supersedes the SSH-tunnel testing method
+    # this used during initial setup.
     volumes:
       - storage_prod:/rails/storage
     depends_on:
@@ -116,3 +135,5 @@ volumes:
   storage_prod:
   db_prod_data:
   redis_prod_data:
+  caddy_data:
+  caddy_config:

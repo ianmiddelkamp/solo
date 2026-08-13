@@ -1,0 +1,15 @@
+{$FRONTEND_HOST} {
+	# Strips the /api prefix before forwarding, so the Rails backend's existing bare routes
+	# (/clients, /invoices, /estimates, etc.) need no changes — /api/clients -> web:80/clients.
+	handle_path /api/* {
+		reverse_proxy web:80
+	}
+
+	# Everything else: serve the built React app, falling back to index.html for any path so
+	# client-side routing (React Router) works on a hard refresh/direct link.
+	handle {
+		root * /srv
+		file_server
+		try_files {path} /index.html
+	}
+}
