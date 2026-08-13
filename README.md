@@ -10,7 +10,7 @@ A Rails 8 API-only backend for Solo, a freelance invoicing and time tracking app
 ## Tech Stack
 
 - **Ruby** 3.4 / **Rails** 8.1
-- **PostgreSQL** 17 (Supabase in production, Docker locally)
+- **PostgreSQL** 17 (self-hosted via Docker in both production and development)
 - **Redis** + **Sidekiq** — background job processing
 - **Prawn** — PDF generation
 - **Active Storage** — file storage (PDFs, project attachments)
@@ -23,8 +23,8 @@ Two isolated environments with separate databases and credentials.
 
 | | Development | Production |
 |---|---|---|
-| Database | `invoice_dev` (Docker) | Supabase (PostgreSQL 17) |
-| PostgreSQL port | 5432 | 5432 (Supabase pooler) |
+| Database | `invoice_dev` (Docker) | `invoice_prod` (Docker, self-hosted) |
+| PostgreSQL port | 5432 (host-published for local tools) | 5432 (internal to the compose network only) |
 | Rails env | `development` | `production` |
 | Email | letter_opener_web | SMTP (configure separately) |
 | Compose file | `docker-compose.yml` | `docker-compose.yml` + `docker-compose.prod.yml` |
@@ -95,27 +95,35 @@ docker compose exec web bundle exec rails console
 User.first.update(email: "you@example.com", name: "Your Name", password: "yourpassword")
 ```
 
-### Run Production (local)
+### Run Production
+
+`docker-compose.prod.yml` is standalone — it is **not** layered on top of `docker-compose.yml`
+(that used to be the pattern, but Compose merges same-named services across files additively for
+keys like `ports:`/`volumes:`/`build.args` rather than replacing them, which silently leaked
+dev-only settings — like Postgres and the app itself being published to the public internet —
+into "production"). Run it on its own:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
 Recommended: add a shell alias to `~/.bashrc`:
 
 ```bash
-alias solo-prod="docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod"
+alias solo-prod="docker compose -f docker-compose.prod.yml --env-file .env.prod"
 ```
 
-Then use `solo-prod up`, `solo-prod exec web ...`, etc.
+Then use `solo-prod up -d`, `solo-prod exec web ...`, etc.
 
 ### Production — First Run
 
-Run migrations against Supabase (ensure `.env.prod` has the correct `DB_*` values):
+The `db_prod` and `redis_prod` services are self-hosted (no external DB dependency). The `web`
+container's entrypoint runs `db:prepare` automatically on startup, so migrations apply on deploy —
+no separate migrate step needed for a fresh setup. To run migrations manually (e.g. after a code
+update without a full restart):
 
 ```bash
-solo-prod run --rm web bundle exec rails db:migrate
-solo-prod exec ollama ollama pull phi3:mini
+solo-prod exec web bin/rails db:migrate
 ```
 
 ## Backups

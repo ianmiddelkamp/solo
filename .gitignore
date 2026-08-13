@@ -34,3 +34,8 @@
 invoice_app.code-workspace
 .env
 .env.prod
+
+# Manually-uploaded DB/storage backups (e.g. Supabase -> self-hosted Postgres migration dumps).
+# Never tracked — these can be large, contain real production data, and shouldn't be touched
+# by git pull/clean on the server.
+/backups/
