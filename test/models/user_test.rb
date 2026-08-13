@@ -26,6 +26,18 @@ class UserTest < ActiveSupport::TestCase
     assert_not user.invited?
   end
 
+  test "rejects a password with no digits" do
+    user = users(:pending_invite)
+    assert_not user.accept_invite!(name: "Real Name", password: "onlyletters")
+    assert_includes user.errors[:password], "must include at least one letter and one number"
+  end
+
+  test "rejects a password with no letters" do
+    user = users(:pending_invite)
+    assert_not user.accept_invite!(name: "Real Name", password: "12345678")
+    assert_includes user.errors[:password], "must include at least one letter and one number"
+  end
+
   test "admin? reflects the role column" do
     assert users(:admin).admin?
     assert_not users(:member).admin?

@@ -14,6 +14,7 @@ class User < ApplicationRecord
   validates :name, presence: true
   validates :role, inclusion: { in: ROLES }, allow_nil: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
+  validate :password_complexity, if: -> { password_required? && password.present? }
 
   before_validation :generate_invite_token, on: :create
 
@@ -51,5 +52,11 @@ class User < ApplicationRecord
 
     self.invite_token ||= SecureRandom.urlsafe_base64(32)
     self.invite_sent_at ||= Time.current
+  end
+
+  def password_complexity
+    return if password.match?(/[A-Za-z]/) && password.match?(/[0-9]/)
+
+    errors.add(:password, "must include at least one letter and one number")
   end
 end
