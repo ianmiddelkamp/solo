@@ -1,10 +1,10 @@
 class BusinessProfilesController < ApplicationController
   def show
-    render json: profile_json(BusinessProfile.instance)
+    render json: profile_json(current_business_profile)
   end
 
   def update
-    profile = BusinessProfile.instance
+    profile = current_business_profile
     if profile.update(business_profile_params)
       render json: profile_json(profile)
     else
@@ -13,13 +13,13 @@ class BusinessProfilesController < ApplicationController
   end
 
   def update_logo
-    profile = BusinessProfile.instance
+    profile = current_business_profile
     profile.logo.attach(params[:logo])
     render json: { logo_data_uri: profile.logo_data_uri }
   end
 
   def destroy_logo
-    profile = BusinessProfile.instance
+    profile = current_business_profile
     profile.logo.purge
     render json: { logo_data_uri: nil }
   end

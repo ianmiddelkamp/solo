@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import LoginPage from './pages/auth/LoginPage';
+import AcceptInvitePage from './pages/auth/AcceptInvitePage';
+import InvitationsPage from './pages/admin/InvitationsPage';
 import ClientList from './pages/clients/ClientList';
 import ClientForm from './pages/clients/ClientForm';
 import ProjectList from './pages/projects/ProjectList';
@@ -23,7 +25,7 @@ import HstReturnDetail from './pages/hst-returns/HstReturnDetail';
 import CcaSchedulePage from './pages/cca/CcaSchedulePage';
 import HomeOfficePage from './pages/home-office/HomeOfficePage';
 import T2125ReportPage from './pages/t2125/T2125ReportPage';
-import { getToken } from './api/index';
+import { getToken, isAdmin } from './api/index';
 import { TimerProvider } from './context/TimerContext';
 import { FeaturesProvider } from './context/FeaturesContext';
 import DialogProvider from './components/DialogProvider';
@@ -32,12 +34,17 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return getToken() ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+function RequireAdmin({ children }: { children: ReactNode }) {
+  return isAdmin() ? <>{children}</> : <Navigate to="/" replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <DialogProvider />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/accept-invite/:token" element={<AcceptInvitePage />} />
 
         <Route path="/" element={<RequireAuth><FeaturesProvider><TimerProvider><Layout /></TimerProvider></FeaturesProvider></RequireAuth>}>
           <Route index element={<Navigate to="/clients" replace />} />
@@ -72,6 +79,8 @@ export default function App() {
           <Route path="cca" element={<CcaSchedulePage />} />
           <Route path="home-office" element={<HomeOfficePage />} />
           <Route path="t2125" element={<T2125ReportPage />} />
+
+          <Route path="admin/invitations" element={<RequireAdmin><InvitationsPage /></RequireAdmin>} />
         </Route>
       </Routes>
     </BrowserRouter>

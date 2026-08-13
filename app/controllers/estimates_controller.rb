@@ -2,7 +2,7 @@ class EstimatesController < ApplicationController
   before_action :set_estimate, only: [:show, :update, :destroy, :pdf, :regenerate_pdf, :send_estimate]
 
   def index
-    estimates = Estimate.includes(project: :client).order(created_at: :asc)
+    estimates = current_business_profile.estimates.includes(project: :client).order(created_at: :asc)
     estimates = estimates.where(project_id: params[:project_id]) if params[:project_id].present?
     render json: estimates.as_json(
       methods: :number,
@@ -15,7 +15,7 @@ class EstimatesController < ApplicationController
   end
 
   def create
-    project = Project.find(params[:project_id])
+    project = current_business_profile.projects.find(params[:project_id])
 
     estimate = EstimateGenerator.new(project: project).generate!
 
@@ -106,7 +106,7 @@ class EstimatesController < ApplicationController
   private
 
   def set_estimate
-    @estimate = Estimate.includes(estimate_line_items: { task: :time_entries }).find(params[:id])
+    @estimate = current_business_profile.estimates.includes(estimate_line_items: { task: :time_entries }).find(params[:id])
   end
 
   def diff_since_last_sent(estimate)
@@ -114,7 +114,7 @@ class EstimatesController < ApplicationController
     previous_total = estimate.last_sent_total
 
     if snapshot.nil?
-      prev = Estimate
+      prev = current_business_profile.estimates
         .where(project_id: estimate.project_id)
         .where.not(id: estimate.id)
         .where.not(last_sent_snapshot: nil)

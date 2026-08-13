@@ -2,7 +2,7 @@ class InvoicesController < ApplicationController
   before_action :set_invoice, only: [:show, :update, :destroy, :pdf, :regenerate_pdf, :send_invoice, :mark_as_paid, :send_receipt]
 
   def index
-    invoices = Invoice.includes(:client).order(created_at: :desc)
+    invoices = current_business_profile.invoices.includes(:client).order(created_at: :desc)
     render json: invoices.as_json(include: :client, methods: [:number, :outstanding])
   end
 
@@ -11,7 +11,7 @@ class InvoicesController < ApplicationController
   end
 
   def unbilled_entries
-    client = Client.find(params[:client_id])
+    client = current_business_profile.clients.find(params[:client_id])
 
     scope = TimeEntry
       .left_outer_joins(:invoice_line_item, :project)
@@ -36,7 +36,7 @@ class InvoicesController < ApplicationController
   end
 
   def create
-    client = Client.find(params[:client_id])
+    client = current_business_profile.clients.find(params[:client_id])
 
     begin
       invoice = InvoiceGenerator.new(
@@ -152,7 +152,7 @@ class InvoicesController < ApplicationController
   private
 
   def set_invoice
-    @invoice = Invoice.find(params[:id])
+    @invoice = current_business_profile.invoices.find(params[:id])
   end
 
   def invoice_params

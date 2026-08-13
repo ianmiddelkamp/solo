@@ -19,9 +19,9 @@ class RatesController < ApplicationController
 
   def set_owner
     if params[:project_id]
-      @owner = Project.find(params[:project_id])
+      @owner = current_business_profile.projects.find(params[:project_id])
     else
-      @owner = Client.find(params[:client_id])
+      @owner = current_business_profile.clients.find(params[:client_id])
     end
   end
 

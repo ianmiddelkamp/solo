@@ -2,7 +2,7 @@ class ProjectsController < ApplicationController
   before_action :set_project, only: [:show, :update, :destroy, :archive]
 
   def index
-    projects = Project.includes(:client, :rates).order(:name)
+    projects = current_business_profile.projects.includes(:client, :rates).order(:name)
     projects = projects.where(is_archived: false) unless params[:show_archived].present?
     render json: projects.as_json(
       include: :client,
@@ -15,7 +15,8 @@ class ProjectsController < ApplicationController
   end
 
   def create
-    @project = Project.new(project_params)
+    client = current_business_profile.clients.find(project_params[:client_id])
+    @project = client.projects.build(project_params.except(:client_id))
     if @project.save
       render json: @project.as_json(include: :client), status: :created
     else
@@ -47,7 +48,7 @@ class ProjectsController < ApplicationController
   private
 
   def set_project
-    @project = Project.find(params[:id])
+    @project = current_business_profile.projects.find(params[:id])
   end
 
   def project_params

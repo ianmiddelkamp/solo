@@ -53,6 +53,9 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "example.com" }
 
+  # Host of the frontend app, used to build links (e.g. invite-accept links) sent in emails.
+  config.x.frontend_host = ENV.fetch("FRONTEND_HOST", "https://example.com")
+
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.smtp_settings = {

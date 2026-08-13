@@ -3,6 +3,10 @@ class ApplicationController < ActionController::API
 
   private
 
+  def current_business_profile
+    @current_business_profile ||= BusinessProfile.for_user(@current_user)
+  end
+
   def authenticate_user!
     header = request.headers["Authorization"]
     token  = header&.split(" ")&.last

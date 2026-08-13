@@ -1,6 +1,6 @@
 class TimerSessionsController < ApplicationController
   def current
-    session = TimerSession.active.order(started_at: :desc).first
+    session = @current_user.timer_sessions.active.order(started_at: :desc).first
     if session
       render json: session_json(session)
     else
@@ -10,40 +10,46 @@ class TimerSessionsController < ApplicationController
 
   def start
     # Stop any existing active session first
-    TimerSession.active.update_all(stopped_at: Time.current)
+    @current_user.timer_sessions.active.update_all(stopped_at: Time.current)
 
-    session = TimerSession.create!(
-      project_id: params[:project_id],
-      task_id: params[:task_id].presence,
-      user: @current_user,
+    project = current_business_profile.projects.find(params[:project_id])
+    task = params[:task_id].present? ? Task.where(task_group_id: project.task_groups.select(:id)).find(params[:task_id]) : nil
+
+    session = @current_user.timer_sessions.create!(
+      project_id: project.id,
+      task_id: task&.id,
       started_at: Time.current,
       description: params[:description]
     )
 
     # Mark task as in_progress when timer starts
-    Task.where(id: params[:task_id]).update_all(status: "in_progress") if params[:task_id].present?
+    Task.where(id: task&.id).update_all(status: "in_progress") if task
 
     render json: session_json(session), status: :created
   end
 
   def stop
-    session = TimerSession.active.order(started_at: :desc).first
+    session = @current_user.timer_sessions.active.order(started_at: :desc).first
 
     unless session
       render json: { error: "No active timer." }, status: :not_found
       return
     end
 
+    project_id = session.project_id
+    if params[:project_id].present?
+      project_id = current_business_profile.projects.find(params[:project_id]).id
+    end
+
     session.update!(
       stopped_at: Time.current,
-      project_id: params[:project_id] || session.project_id,
+      project_id: project_id,
       description: params[:description]
     )
 
-    time_entry = TimeEntry.create!(
+    time_entry = @current_user.time_entries.create!(
       project_id: session.project_id,
       task_id: session.task_id,
-      user: @current_user,
       date: session.started_at.to_date,
       hours: session.hours,
       description: session.description,
@@ -55,19 +61,21 @@ class TimerSessionsController < ApplicationController
   end
 
   def update
-    session = TimerSession.active.order(started_at: :desc).first
+    session = @current_user.timer_sessions.active.order(started_at: :desc).first
     unless session
       render json: { error: "No active timer." }, status: :not_found
       return
     end
     attrs = { description: params[:description] }
-    attrs[:task_id] = params[:task_id].presence if params.key?(:task_id)
+    if params.key?(:task_id)
+      attrs[:task_id] = params[:task_id].presence
+    end
     session.update!(attrs)
     render json: session_json(session)
   end
 
   def cancel
-    TimerSession.active.update_all(stopped_at: Time.current)
+    @current_user.timer_sessions.active.update_all(stopped_at: Time.current)
     head :no_content
   end
 

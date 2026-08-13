@@ -8,9 +8,10 @@ class BusinessProfile < ApplicationRecord
   has_many :cca_assets, dependent: :destroy
   has_one :home_office_profile, dependent: :destroy
 
-  def self.instance
-    first_or_create!
-  end
+  has_many :projects, through: :clients
+  has_many :invoices, through: :clients
+  has_many :estimates, through: :projects
+  has_many :task_groups, through: :projects
 
   def self.for_user(user)
     find_or_create_by!(user: user)

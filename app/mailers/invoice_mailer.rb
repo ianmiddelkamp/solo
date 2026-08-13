@@ -21,7 +21,7 @@ class InvoiceMailer < ApplicationMailer
   def set_up(invoice)
     @invoice  = invoice
     @client   = invoice.client
-    @business = BusinessProfile.instance
+    @business = @client.business_profile
 
     attachments["#{@invoice.number}.pdf"] = {
       mime_type: "application/pdf",

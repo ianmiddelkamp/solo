@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearToken } from '../api/index';
+import { clearToken, isAdmin } from '../api/index';
 import TimerStatus from './Timer';
 import logo from '../logo_transparent.png';
 
@@ -20,8 +20,14 @@ const navItems: ({ to: string; label: string } | null)[] = [
   { to: '/t2125',        label: 'T2125 Report' },
 ];
 
+const adminNavItems: ({ to: string; label: string } | null)[] = [
+  null, // divider
+  { to: '/admin/invitations', label: 'Invitations' },
+];
+
 export default function Layout() {
   const navigate = useNavigate();
+  const items = isAdmin() ? [...navItems, ...adminNavItems] : navItems;
 
   function handleLogout() {
     clearToken();
@@ -35,7 +41,7 @@ export default function Layout() {
           <img src={logo} alt="Solo" className="h-8 w-auto mx-auto" />
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map((item, i) =>
+          {items.map((item, i) =>
             item === null ? (
               <div key={`divider-${i}`} className="border-t border-gray-700 my-2" />
             ) : (

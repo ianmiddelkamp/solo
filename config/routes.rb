@@ -6,6 +6,12 @@ Rails.application.routes.draw do
   post "/auth/login", to: "auth#login"
   get  "/features",   to: "features#index"
 
+  get    "/invitations",              to: "invitations#index"
+  post   "/invitations",              to: "invitations#create"
+  delete "/invitations/:id",          to: "invitations#destroy"
+  get    "/invitations/:token",       to: "invitations#show"
+  post   "/invitations/:token/accept", to: "invitations#accept"
+
   get    "/timer",       to: "timer_sessions#current"
   post   "/timer/start", to: "timer_sessions#start"
   post   "/timer/stop",  to: "timer_sessions#stop"

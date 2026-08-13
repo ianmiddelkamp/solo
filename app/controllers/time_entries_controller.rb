@@ -6,7 +6,7 @@ class TimeEntriesController < ApplicationController
     entries = if @project
       @project.time_entries
     else
-      scope = TimeEntry.all
+      scope = @current_user.time_entries
 
       if params[:client_id].present?
         scope = scope.left_outer_joins(:project).where(
@@ -55,9 +55,9 @@ class TimeEntriesController < ApplicationController
 
   def create
     @time_entry = if @project
-      @project.time_entries.new(time_entry_params)
+      @project.time_entries.new(time_entry_params.merge(user: @current_user))
     else
-      TimeEntry.new(time_entry_params)
+      @current_user.time_entries.new(time_entry_params)
     end
 
     if @time_entry.save
@@ -83,16 +83,16 @@ class TimeEntriesController < ApplicationController
   private
 
   def set_project
-    @project = Project.find(params[:project_id])
+    @project = current_business_profile.projects.find(params[:project_id])
   end
 
   def set_time_entry
-    @time_entry = @project ? @project.time_entries.find(params[:id]) : TimeEntry.find(params[:id])
+    @time_entry = @project ? @project.time_entries.find(params[:id]) : @current_user.time_entries.find(params[:id])
   end
 
   def time_entry_params
     params.require(:time_entry).permit(
-      :user_id, :date, :hours, :description,
+      :date, :hours, :description,
       :started_at, :stopped_at,
       :task_id, :project_id, :charge_code_id, :client_id
     )

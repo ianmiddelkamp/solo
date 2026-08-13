@@ -68,7 +68,7 @@ class ProjectAttachmentsController < ApplicationController
   private
 
   def set_project
-    @project = Project.find(params[:project_id])
+    @project = current_business_profile.projects.find(params[:project_id])
   end
 
   def find_blob

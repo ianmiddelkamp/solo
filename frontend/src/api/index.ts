@@ -10,6 +10,27 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem('token');
+  localStorage.removeItem('user');
+}
+
+export interface CurrentUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string | null;
+}
+
+export function getUser(): CurrentUser | null {
+  const raw = localStorage.getItem('user');
+  return raw ? (JSON.parse(raw) as CurrentUser) : null;
+}
+
+export function setUser(user: CurrentUser): void {
+  localStorage.setItem('user', JSON.stringify(user));
+}
+
+export function isAdmin(): boolean {
+  return getUser()?.role === 'admin';
 }
 
 export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T | null> {
