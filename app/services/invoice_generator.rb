@@ -4,7 +4,7 @@ class InvoiceGenerator
     @start_date      = start_date
     @end_date        = end_date
     @time_entry_ids  = time_entry_ids
-    @tax_rate        = BusinessProfile.instance.tax_rate || 0
+    @tax_rate        = @client.business_profile.tax_rate || 0
   end
 
   def generate!

@@ -4,7 +4,7 @@ class PdfGenerator
   def initialize(invoice)
     @invoice  = invoice
     @client   = invoice.client
-    @business = BusinessProfile.instance
+    @business = @client.business_profile
     @items    = invoice.invoice_line_items
                        .includes(time_entry: [:project, :charge_code, :task])
                        .order("time_entries.date ASC")
