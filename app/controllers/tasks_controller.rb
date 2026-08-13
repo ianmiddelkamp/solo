@@ -51,6 +51,10 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :status, :position, :task_group_id, :estimated_hours)
+    # task_group_id intentionally excluded: the group is already established by set_task_group
+    # (scoped to current_business_profile). Permitting it here let a PATCH move a task into an
+    # arbitrary task_group_id, including one belonging to another tenant. Cross-group moves within
+    # the same project should go through #reorder, which validates the target group ownership.
+    params.require(:task).permit(:title, :status, :position, :estimated_hours)
   end
 end

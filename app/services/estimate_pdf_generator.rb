@@ -5,7 +5,7 @@ class EstimatePdfGenerator
     @estimate = estimate
     @project  = estimate.project
     @client   = @project.client
-    @business = BusinessProfile.instance
+    @business = @client.business_profile
     @items    = estimate.estimate_line_items
                         .includes(task: [:task_group, :time_entries])
                         .order("estimate_line_items.id ASC")

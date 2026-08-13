@@ -1,7 +1,7 @@
 class EstimateGenerator
   def initialize(project:)
     @project  = project
-    @tax_rate = BusinessProfile.instance.tax_rate || 0
+    @tax_rate = @project.client.business_profile.tax_rate || 0
   end
 
   def generate!
