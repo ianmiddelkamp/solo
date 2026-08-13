@@ -134,7 +134,11 @@ A backup script is provided at `scripts/backup.sh`. It dumps the Supabase databa
 bash scripts/backup.sh
 ```
 
-Run from the project root (`.env.prod` must exist). No containers need to be running — the script connects directly to Supabase. Requires `postgresql-client-17` (`sudo apt install postgresql-client-17`). Backups are written to `~/backups/invoice/prod/` with timestamps and 14-day retention.
+Run from the project root (`.env.prod` must exist). Requires `db_prod` to be running — the
+database dump runs via `docker compose exec db_prod pg_dump` (not a host-side `pg_dump`, since
+`db_prod` has no `ports:` mapping and isn't reachable from outside the compose network), so no
+`postgresql-client` install is needed on the host anymore. Backups are written to
+`~/backups/invoice/prod/` with timestamps and 14-day retention.
 
 ## API Endpoints
 

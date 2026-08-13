@@ -5,7 +5,7 @@ BACKUP_DIR=~/backups/invoice
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 KEEP_DAYS=14
 
-COMPOSE="docker compose -f ~/invoice_app/docker-compose.yml -f ~/invoice_app/docker-compose.prod.yml"
+COMPOSE="docker compose -f ~/invoice_app/docker-compose.prod.yml"
 
 echo "=== Invoice App Backup ==="
 echo "Timestamp: $TIMESTAMP"
@@ -50,12 +50,15 @@ echo "Environment: $ENV_LABEL ($DB_HOST/$DB_NAME)"
 echo ""
 
 # --- Database ---
+# Runs pg_dump *inside* the db_prod container via `compose exec`, not as a host-side pg_dump
+# connecting over TCP — db_prod has no `ports:` mapping at all (deliberately, never reachable
+# from outside the compose network), so a host-side connection attempt would just fail. This
+# also means no postgresql-client needs to be installed on the host anymore.
 echo "📦 Backing up database..."
 DB_FILE="$DB_BACKUP_DIR/${DB_NAME}_$TIMESTAMP.sql.gz"
 
-PGPASSWORD="$DB_PASS" /usr/lib/postgresql/17/bin/pg_dump \
-  -h "$DB_HOST" -p "${DB_PORT:-5432}" -U "$DB_USER" "$DB_NAME" \
-  --no-owner --no-privileges \
+$COMPOSE exec -T -e PGPASSWORD="$DB_PASS" db_prod \
+  pg_dump -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges \
   | gzip > "$DB_FILE"
 
 DB_SIZE=$(du -sh "$DB_FILE" | cut -f1)
