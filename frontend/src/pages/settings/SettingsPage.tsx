@@ -10,6 +10,7 @@ const EMPTY = {
   hst_number: '', primary_color: '#4338ca',
   invoice_footer: '', estimate_footer: '', default_payment_terms: '',
   tax_rate: '',
+  gmail_user: '', gmail_app_password: '',
 };
 
 type FormState = typeof EMPTY;
@@ -71,6 +72,7 @@ function TextArea({ label, name, value, onChange, placeholder, hint, rows = 3 }:
 export default function SettingsPage() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
+  const [emailConfigured, setEmailConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -98,7 +100,10 @@ export default function SettingsPage() {
           estimate_footer:       p.estimate_footer       ?? '',
           default_payment_terms: p.default_payment_terms ?? '',
           tax_rate:              p.tax_rate              ?? '',
+          gmail_user:            p.gmail_user            ?? '',
+          gmail_app_password:    '',
         });
+        setEmailConfigured(!!p.email_configured);
         setLogoDataUri(p.logo_data_uri || null);
       })
       .catch((e) => setError(e.message))
@@ -142,7 +147,10 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(false);
     try {
-      await updateBusinessProfile(form);
+      const payload = { ...form, gmail_app_password: form.gmail_app_password || undefined };
+      const updated = await updateBusinessProfile(payload);
+      setEmailConfigured(!!updated?.email_configured);
+      setForm((prev) => ({ ...prev, gmail_app_password: '' }));
       setSuccess(true);
     } catch (err) {
       setError((err as Error).message);
@@ -317,6 +325,39 @@ export default function SettingsPage() {
               onChange={handleChange}
               placeholder="This is an estimate only. The final invoice may vary based on actual hours worked."
               hint="Appears at the bottom of estimates. Leave blank for the default."
+            />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Email Sending</h3>
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+              <p className="text-xs text-amber-800">
+                Invoices, estimates, and invites are sent from <strong>your own Gmail account</strong>, not a shared
+                one. Once this is configured, sending an email is real — it goes straight to your client's inbox,
+                not a test capture. Until you set this up, sending will show an error instead of silently failing.
+              </p>
+              <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emailConfigured ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                {emailConfigured ? 'Configured' : 'Not configured'}
+              </span>
+            </div>
+
+            <Field label="Gmail Address" name="gmail_user" value={form.gmail_user} onChange={handleChange} type="email" placeholder="you@gmail.com" />
+
+            <Field
+              label="Gmail App Password"
+              name="gmail_app_password"
+              value={form.gmail_app_password}
+              onChange={handleChange}
+              type="password"
+              placeholder={emailConfigured ? '••••••••••••••••' : '16-character app password'}
+              hint={
+                'This is NOT your regular Gmail password. Turn on 2-Step Verification at ' +
+                'myaccount.google.com/security, then generate one at myaccount.google.com/apppasswords ' +
+                '(select "Mail" as the app). Paste the 16-character password shown there. ' +
+                (emailConfigured ? "Leave blank to keep your current password — we don't display it back to you." : '')
+              }
             />
           </div>
         </div>

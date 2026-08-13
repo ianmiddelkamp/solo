@@ -30,8 +30,11 @@ class TasksController < ApplicationController
   def reorder
     ids = params[:ids] || []
     target_group_id = params[:target_group_id] || @task_group.id
+    project_task_group_ids = @task_group.project.task_groups.pluck(:id)
+    return head :no_content unless project_task_group_ids.include?(target_group_id.to_i)
+
     ids.each_with_index do |id, idx|
-      Task.where(id: id).update_all(position: idx + 1, task_group_id: target_group_id)
+      Task.where(id: id, task_group_id: project_task_group_ids).update_all(position: idx + 1, task_group_id: target_group_id)
     end
     head :no_content
   end
@@ -39,7 +42,7 @@ class TasksController < ApplicationController
   private
 
   def set_task_group
-    project = Project.find(params[:project_id])
+    project = current_business_profile.projects.find(params[:project_id])
     @task_group = project.task_groups.find(params[:task_group_id])
   end
 

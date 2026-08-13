@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../../api/auth';
-import { setToken } from '../../api/index';
+import { setToken, setUser } from '../../api/index';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await login(email, password);
-      if (data) { setToken(data.token); navigate('/'); }
+      if (data) { setToken(data.token); setUser(data.user); navigate('/'); }
     } catch (err) {
       setError((err as Error).message);
     } finally {

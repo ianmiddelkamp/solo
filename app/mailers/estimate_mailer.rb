@@ -3,7 +3,7 @@ class EstimateMailer < ApplicationMailer
     @estimate = estimate
     @client   = estimate.project.client
     @project  = estimate.project
-    @business = BusinessProfile.instance
+    @business = @client.business_profile
     @items    = estimate.estimate_line_items.includes(task: [:task_group, :time_entries]).order("estimate_line_items.id ASC")
     @changes  = changes
 
@@ -19,7 +19,7 @@ class EstimateMailer < ApplicationMailer
       }
     end
 
-    mail(
+    deliver_mail(
       to:      @client.email1,
       subject: "Estimate #{estimate.number} from #{@business.name.presence || 'us'}"
     )

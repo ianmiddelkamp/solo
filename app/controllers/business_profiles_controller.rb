@@ -1,10 +1,10 @@
 class BusinessProfilesController < ApplicationController
   def show
-    render json: profile_json(BusinessProfile.instance)
+    render json: profile_json(current_business_profile)
   end
 
   def update
-    profile = BusinessProfile.instance
+    profile = current_business_profile
     if profile.update(business_profile_params)
       render json: profile_json(profile)
     else
@@ -13,13 +13,13 @@ class BusinessProfilesController < ApplicationController
   end
 
   def update_logo
-    profile = BusinessProfile.instance
+    profile = current_business_profile
     profile.logo.attach(params[:logo])
     render json: { logo_data_uri: profile.logo_data_uri }
   end
 
   def destroy_logo
-    profile = BusinessProfile.instance
+    profile = current_business_profile
     profile.logo.purge
     render json: { logo_data_uri: nil }
   end
@@ -31,11 +31,15 @@ class BusinessProfilesController < ApplicationController
       :name, :email, :phone,
       :address1, :address2, :city, :state, :postcode, :country,
       :hst_number, :primary_color, :invoice_footer, :estimate_footer,
-      :default_payment_terms, :tax_rate
+      :default_payment_terms, :tax_rate,
+      :gmail_user, :gmail_app_password
     )
   end
 
   def profile_json(profile)
-    profile.as_json.merge(logo_data_uri: profile.logo_data_uri)
+    profile.as_json(except: :gmail_app_password).merge(
+      logo_data_uri: profile.logo_data_uri,
+      email_configured: profile.email_configured?
+    )
   end
 end

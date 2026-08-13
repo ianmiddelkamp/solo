@@ -2,7 +2,7 @@ class InvoiceMailer < ApplicationMailer
   def invoice_email(invoice)
     set_up(invoice)
 
-    mail(
+    deliver_mail(
       to:      @client.email1,
       subject: "Invoice #{invoice.number} from #{@business.name.presence || 'us'}"
     )
@@ -10,7 +10,7 @@ class InvoiceMailer < ApplicationMailer
 
   def receipt_email(invoice)
     set_up(invoice)
-    mail(
+    deliver_mail(
       to:      @client.email1,
       subject: "Payment Received for invoice #{invoice.number}"
     )
@@ -21,7 +21,7 @@ class InvoiceMailer < ApplicationMailer
   def set_up(invoice)
     @invoice  = invoice
     @client   = invoice.client
-    @business = BusinessProfile.instance
+    @business = @client.business_profile
 
     attachments["#{@invoice.number}.pdf"] = {
       mime_type: "application/pdf",

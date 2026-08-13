@@ -39,6 +39,9 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "example.com" }
 
+  # Host of the frontend app, used to build links (e.g. invite-accept links) sent in emails.
+  config.x.frontend_host = "http://localhost:5173"
+
   # Print deprecation notices to the stderr.
   config.active_support.deprecation = :stderr
 

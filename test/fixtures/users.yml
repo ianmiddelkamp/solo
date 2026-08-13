@@ -1,0 +1,20 @@
+admin:
+  name: Admin User
+  email: admin@example.com
+  password_digest: <%= BCrypt::Password.create("password123") %>
+  role: admin
+  accepted_at: <%= 1.year.ago %>
+
+member:
+  name: Member User
+  email: member@example.com
+  password_digest: <%= BCrypt::Password.create("password123") %>
+  role: member
+  accepted_at: <%= 1.year.ago %>
+
+pending_invite:
+  name: invitee@example.com
+  email: invitee@example.com
+  invited_by: admin
+  invite_token: pending-invite-token
+  invite_sent_at: <%= 1.day.ago %>

@@ -2,12 +2,11 @@ class ChargeCodesController < ApplicationController
   before_action :set_charge_code, only: [:update, :destroy]
 
   def index
-    render json: ChargeCode.all.order(:code)
+    render json: @current_user.charge_codes.order(:code)
   end
 
   def create
-    @charge_code = ChargeCode.new(charge_code_params)
-    @charge_code.user = @current_user
+    @charge_code = @current_user.charge_codes.build(charge_code_params)
     if @charge_code.save
       render json: @charge_code, status: :created
     else
@@ -31,7 +30,7 @@ class ChargeCodesController < ApplicationController
   private
 
   def set_charge_code
-    @charge_code = ChargeCode.find(params[:id])
+    @charge_code = @current_user.charge_codes.find(params[:id])
   end
 
   def charge_code_params

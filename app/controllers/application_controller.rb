@@ -1,7 +1,15 @@
 class ApplicationController < ActionController::API
   before_action :authenticate_user!
 
+  rescue_from ApplicationMailer::EmailNotConfiguredError do |e|
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   private
+
+  def current_business_profile
+    @current_business_profile ||= BusinessProfile.for_user(@current_user)
+  end
 
   def authenticate_user!
     header = request.headers["Authorization"]

@@ -40,6 +40,9 @@ Rails.application.configure do
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # Host of the frontend app (Vite dev server), used to build links (e.g. invite-accept links) sent in emails.
+  config.x.frontend_host = ENV.fetch("FRONTEND_HOST", "http://localhost:5173")
+
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 

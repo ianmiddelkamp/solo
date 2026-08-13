@@ -48,7 +48,7 @@ class TaskGroupsController < ApplicationController
   private
 
   def set_project
-    @project = Project.find(params[:project_id])
+    @project = current_business_profile.projects.find(params[:project_id])
   end
 
   def set_task_group
