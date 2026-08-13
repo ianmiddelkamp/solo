@@ -374,7 +374,10 @@ VITE_API_URL=http://your-api-host npm start
 cd frontend && npm run build
 ```
 
-Output goes to `frontend/build/`. Since this is a single-page app, the web server must serve `index.html` for all routes.
+Output goes to `frontend/dist/` (Vite's default `outDir`, unchanged in `vite.config.ts`). Since
+this is a single-page app, the web server must serve `index.html` for all routes — see
+`frontend/Dockerfile` and the root `Caddyfile` for how production does this (`try_files` falls
+back to `index.html` for any unmatched path).
 
 ### Timesheets
 
