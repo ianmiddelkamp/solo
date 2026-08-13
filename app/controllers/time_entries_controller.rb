@@ -54,6 +54,8 @@ class TimeEntriesController < ApplicationController
   end
 
   def create
+    validate_tenant_foreign_keys!(time_entry_params)
+
     @time_entry = if @project
       @project.time_entries.new(time_entry_params.merge(user: @current_user))
     else
@@ -68,6 +70,8 @@ class TimeEntriesController < ApplicationController
   end
 
   def update
+    validate_tenant_foreign_keys!(time_entry_params)
+
     if @time_entry.update(time_entry_params)
       render json: @time_entry
     else
@@ -96,5 +100,20 @@ class TimeEntriesController < ApplicationController
       :started_at, :stopped_at,
       :task_id, :project_id, :charge_code_id, :client_id
     )
+  end
+
+  # time_entry_params permits project_id/client_id/charge_code_id/task_id directly from the
+  # request body (needed for the top-level, non-nested create/update path). Without this check
+  # those foreign keys were unvalidated, letting a request point a time entry at another tenant's
+  # project/client/charge code/task — this raises RecordNotFound (404) the same way the rest of
+  # the app's tenant-scoped .find calls do.
+  def validate_tenant_foreign_keys!(entry_params)
+    current_business_profile.projects.find(entry_params[:project_id]) if entry_params[:project_id].present?
+    current_business_profile.clients.find(entry_params[:client_id]) if entry_params[:client_id].present?
+    @current_user.charge_codes.find(entry_params[:charge_code_id]) if entry_params[:charge_code_id].present?
+
+    if entry_params[:task_id].present?
+      Task.joins(task_group: :project).merge(current_business_profile.projects).find(entry_params[:task_id])
+    end
   end
 end
