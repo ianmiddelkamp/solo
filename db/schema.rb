@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_125954) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_175513) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -51,6 +51,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_125954) do
     t.string "default_payment_terms"
     t.string "email"
     t.text "estimate_footer"
+    t.text "gmail_app_password"
+    t.string "gmail_user"
     t.string "hst_number"
     t.text "invoice_footer"
     t.string "name"

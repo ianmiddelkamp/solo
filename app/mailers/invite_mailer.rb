@@ -5,7 +5,7 @@ class InviteMailer < ApplicationMailer
     @business = BusinessProfile.for_user(inviter)
     @accept_url = "#{frontend_host}/accept-invite/#{@user.invite_token}"
 
-    mail(
+    deliver_mail(
       to:      @user.email,
       subject: "You've been invited to #{@business.name.presence || 'Invoice App'}"
     )

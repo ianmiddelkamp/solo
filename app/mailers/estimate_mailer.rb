@@ -19,7 +19,7 @@ class EstimateMailer < ApplicationMailer
       }
     end
 
-    mail(
+    deliver_mail(
       to:      @client.email1,
       subject: "Estimate #{estimate.number} from #{@business.name.presence || 'us'}"
     )

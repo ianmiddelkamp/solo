@@ -31,11 +31,15 @@ class BusinessProfilesController < ApplicationController
       :name, :email, :phone,
       :address1, :address2, :city, :state, :postcode, :country,
       :hst_number, :primary_color, :invoice_footer, :estimate_footer,
-      :default_payment_terms, :tax_rate
+      :default_payment_terms, :tax_rate,
+      :gmail_user, :gmail_app_password
     )
   end
 
   def profile_json(profile)
-    profile.as_json.merge(logo_data_uri: profile.logo_data_uri)
+    profile.as_json(except: :gmail_app_password).merge(
+      logo_data_uri: profile.logo_data_uri,
+      email_configured: profile.email_configured?
+    )
   end
 end

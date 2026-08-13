@@ -151,6 +151,9 @@ export interface BusinessProfile {
   estimate_footer?: string | null;
   default_payment_terms?: string | null;
   tax_rate?: string | null;
+  gmail_user?: string | null;
+  gmail_app_password?: string;
+  email_configured?: boolean;
 }
 
 export interface EstimateLineItem {
