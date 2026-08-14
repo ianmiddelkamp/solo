@@ -5,7 +5,7 @@ BACKUP_DIR=~/backups/invoice
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 KEEP_DAYS=14
 
-COMPOSE="docker compose -f ~/invoice_app/docker-compose.prod.yml"
+COMPOSE="docker compose -f $HOME/invoice_app/docker-compose.prod.yml"
 
 echo "=== Invoice App Backup ==="
 echo "Timestamp: $TIMESTAMP"
