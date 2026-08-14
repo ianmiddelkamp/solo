@@ -25,7 +25,7 @@ class ApplicationMailer < ActionMailer::Base
   end
 
   def mailer_from
-    name  = @business&.name.presence  || "Invoice App"
+    name  = @business&.name.presence  || Rails.application.config.x.app_name
     email = @business&.email.presence || "noreply@example.com"
     "#{name} <#{email}>"
   end
