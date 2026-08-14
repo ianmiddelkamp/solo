@@ -3,7 +3,6 @@ require "json"
 
 class SowImporter
   MAX_CHARS = {
-    "ollama"    => 5_000,
     "groq"      => 40_000,
     "anthropic" => 40_000,
     "gemini"    => 40_000
@@ -21,10 +20,6 @@ class SowImporter
     "groq" => {
       url:   "https://api.groq.com/openai/v1/chat/completions",
       model: "llama-3.3-70b-versatile"
-    },
-    "ollama" => {
-      url:   nil, # built from SOW_OLLAMA_HOST at runtime
-      model: nil  # set via SOW_OLLAMA_MODEL
     }
   }.freeze
 
@@ -32,7 +27,7 @@ class SowImporter
     provider = Rails.application.config.sow_provider
     return false if provider.blank?
     return false unless PROVIDERS.key?(provider)
-    return false if Rails.application.config.sow_api_key.blank? && provider != "ollama"
+    return false if Rails.application.config.sow_api_key.blank?
     true
   end
 
@@ -41,7 +36,7 @@ class SowImporter
     @provider = Rails.application.config.sow_provider
     @api_key  = Rails.application.config.sow_api_key
     raise "SOW_PROVIDER '#{@provider}' is not supported. Choose: #{PROVIDERS.keys.join(', ')}" unless PROVIDERS.key?(@provider)
-    raise "SOW_API_KEY is not set" if @api_key.blank? && @provider != "ollama"
+    raise "SOW_API_KEY is not set" if @api_key.blank?
   end
 
   def self.from_file(uploaded_file)
@@ -75,7 +70,6 @@ class SowImporter
     when "anthropic" then call_anthropic
     when "gemini"    then call_gemini
     when "groq"      then call_openai_compatible
-    when "ollama"    then call_ollama
     end
     normalize(JSON.parse(extract_json(raw)))
   rescue JSON::ParserError => e
@@ -116,42 +110,6 @@ class SowImporter
     )
 
     response.dig("candidates", 0, "content", "parts", 0, "text")
-  end
-
-  OLLAMA_SCHEMA = {
-    type: "object",
-    properties: {
-      title: { type: "string" },
-      tasks: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: { title: { type: "string" } },
-          required: ["title"]
-        }
-      }
-    },
-    required: ["title", "tasks"]
-  }.freeze
-
-  def call_ollama
-    host  = Rails.application.config.sow_ollama_host
-    model = Rails.application.config.sow_ollama_model
-    url   = "#{host}/api/chat"
-
-    body = {
-      model: model,
-      messages: [{ role: "user", content: prompt(max_chars: 5000) }],
-      stream: false,
-      format: OLLAMA_SCHEMA
-    }
-
-    response = post(url,
-      headers: { "content-type" => "application/json" },
-      body: body
-    )
-
-    response.dig("message", "content")
   end
 
   def call_openai_compatible

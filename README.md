@@ -10,12 +10,11 @@ A Rails 8 API-only backend for Solo, a freelance invoicing and time tracking app
 ## Tech Stack
 
 - **Ruby** 3.4 / **Rails** 8.1
-- **PostgreSQL** 17 (Supabase in production, Docker locally)
+- **PostgreSQL** 17 (self-hosted via Docker in both production and development)
 - **Redis** + **Sidekiq** — background job processing
 - **Prawn** — PDF generation
 - **Active Storage** — file storage (PDFs, project attachments)
 - **Action Mailer** + **letter_opener_web** (dev) — email delivery
-- **Ollama** (via Docker) — local AI for SOW parsing
 
 ## Environments
 
@@ -23,11 +22,11 @@ Two isolated environments with separate databases and credentials.
 
 | | Development | Production |
 |---|---|---|
-| Database | `invoice_dev` (Docker) | Supabase (PostgreSQL 17) |
-| PostgreSQL port | 5432 | 5432 (Supabase pooler) |
+| Database | `invoice_dev` (Docker) | `invoice_prod` (Docker, self-hosted) |
+| PostgreSQL port | 5432 (host-published for local tools) | 5432 (internal to the compose network only) |
 | Rails env | `development` | `production` |
 | Email | letter_opener_web | SMTP (configure separately) |
-| Compose file | `docker-compose.yml` | `docker-compose.yml` + `docker-compose.prod.yml` |
+| Compose file | `docker-compose.yml` | `docker-compose.prod.yml` (standalone) |
 | Env file | `.env` | `.env.prod` |
 
 ## Getting Started
@@ -53,10 +52,8 @@ Fill in values before starting.
 | `DB_NAME` | Database name | `invoice_dev` |
 | `DB_USER` | PostgreSQL username | required |
 | `DB_PASS` | PostgreSQL password | required |
-| `SOW_PROVIDER` | AI provider for SOW import (`ollama`, `groq`, `anthropic`, `gemini`) | `ollama` |
-| `SOW_API_KEY` | API key (not needed for ollama) | — |
-| `SOW_OLLAMA_HOST` | Ollama service URL | `http://ollama:11434` |
-| `SOW_OLLAMA_MODEL` | Model to use with Ollama | `phi3:mini` |
+| `SOW_PROVIDER` | AI provider for SOW import (`groq`, `anthropic`, `gemini`) | `anthropic` |
+| `SOW_API_KEY` | API key for the chosen provider | required |
 
 ### Build and Run
 
@@ -72,16 +69,6 @@ This starts all services. On first run the frontend container installs its depen
 | React frontend | http://localhost:5173 |
 | Letter Opener (dev email) | http://localhost:3000/letter_opener |
 
-### First Run — Pull the AI Model
-
-On first startup, pull the Ollama model (one-time, ~2.3GB):
-
-```bash
-docker compose exec ollama ollama pull phi3:mini
-```
-
-The model is stored in a named Docker volume and persists across restarts.
-
 ### Database Setup (first run)
 
 ```bash
@@ -95,38 +82,64 @@ docker compose exec web bundle exec rails console
 User.first.update(email: "you@example.com", name: "Your Name", password: "yourpassword")
 ```
 
-### Run Production (local)
+### Run Production
+
+`docker-compose.prod.yml` is standalone — it is **not** layered on top of `docker-compose.yml`
+(that used to be the pattern, but Compose merges same-named services across files additively for
+keys like `ports:`/`volumes:`/`build.args` rather than replacing them, which silently leaked
+dev-only settings — like Postgres and the app itself being published to the public internet —
+into "production"). Run it on its own:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
 Recommended: add a shell alias to `~/.bashrc`:
 
 ```bash
-alias solo-prod="docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod"
+alias solo-prod="docker compose -f docker-compose.prod.yml --env-file .env.prod"
 ```
 
-Then use `solo-prod up`, `solo-prod exec web ...`, etc.
+Then use `solo-prod up -d`, `solo-prod exec web ...`, etc.
 
 ### Production — First Run
 
-Run migrations against Supabase (ensure `.env.prod` has the correct `DB_*` values):
+The `db_prod` and `redis_prod` services are self-hosted (no external DB dependency). The `web`
+container's entrypoint runs `db:prepare` automatically on startup, so migrations apply on deploy —
+no separate migrate step needed for a fresh setup. To run migrations manually (e.g. after a code
+update without a full restart):
 
 ```bash
-solo-prod run --rm web bundle exec rails db:migrate
-solo-prod exec ollama ollama pull phi3:mini
+solo-prod exec web bin/rails db:migrate
 ```
 
 ## Backups
 
-A backup script is provided at `scripts/backup.sh`. It dumps the Supabase database directly and copies Active Storage files.
+A backup script is provided at `scripts/backup.sh`. It dumps the self-hosted `db_prod` database and copies Active Storage files, then optionally ships both offsite.
 
 ```bash
 bash scripts/backup.sh
 ```
 
-Run from the project root (`.env.prod` must exist). No containers need to be running — the script connects directly to Supabase. Requires `postgresql-client-17` (`sudo apt install postgresql-client-17`). Backups are written to `~/backups/invoice/prod/` with timestamps and 14-day retention.
+Run from the project root (`.env.prod` must exist). Requires `db_prod` to be running — the
+database dump runs via `docker compose exec db_prod pg_dump` (not a host-side `pg_dump`, since
+`db_prod` has no `ports:` mapping and isn't reachable from outside the compose network), so no
+`postgresql-client` install is needed on the host anymore. Backups are written to
+`~/backups/invoice/prod/` with timestamps and 14-day retention.
+
+### Offsite backups (Cloudflare R2)
+
+If `BACKUP_STORAGE_URL` / `BACKUP_STORAGE_ACCESS_KEY_ID` / `BACKUP_STORAGE_SECRET_ACCESS_KEY` are
+set in `.env.prod` (see `.env.example`), the script also uploads both files to Cloudflare R2
+(S3-compatible) after the local backup completes — so a VPS failure can't take out the backups
+along with the live data. Requires the `aws` CLI on the host:
+
+```bash
+sudo apt install -y awscli
+```
+
+Without those env vars set (or without `aws` installed), the offsite step is skipped gracefully
+— the local backup still runs and completes normally.
 
 ## API Endpoints
 
@@ -271,9 +284,8 @@ Projects have task groups, and task groups have tasks. Tasks have a status (`tod
 `POST /projects/:id/sow_import` accepts a `.md`, `.txt`, or `.docx` file (or raw `text` param) and uses an AI model to extract a task group with a flat list of tasks. The response is synchronous.
 
 To switch providers, set `SOW_PROVIDER` in `.env`:
-- `ollama` — local, private, free (default)
+- `anthropic` — Claude API (default)
 - `groq` — fast cloud inference, free tier available
-- `anthropic` — Claude API
 - `gemini` — Google Gemini API
 
 ### Project Attachments
@@ -366,7 +378,10 @@ VITE_API_URL=http://your-api-host npm start
 cd frontend && npm run build
 ```
 
-Output goes to `frontend/build/`. Since this is a single-page app, the web server must serve `index.html` for all routes.
+Output goes to `frontend/dist/` (Vite's default `outDir`, unchanged in `vite.config.ts`). Since
+this is a single-page app, the web server must serve `index.html` for all routes — see
+`frontend/Dockerfile` and the root `Caddyfile` for how production does this (`try_files` falls
+back to `index.html` for any unmatched path).
 
 ### Timesheets
 

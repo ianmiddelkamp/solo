@@ -1,39 +1,139 @@
-version: "3.9"
-services:
-  web:
-    volumes:
-      - storage_prod:/rails/storage
-    environment:
-      RAILS_ENV: production
-      RACK_ENV: production
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      GMAIL_USER: ${GMAIL_USER}
-      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
-      AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY}
-      AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY}
-      AR_ENCRYPTION_KEY_DERIVATION_SALT: ${AR_ENCRYPTION_KEY_DERIVATION_SALT}
+# Standalone production compose file — deliberately NOT layered on top of docker-compose.yml
+# (the dev file). They used to be run together (`-f docker-compose.yml -f docker-compose.prod.yml`),
+# but Compose merges same-named services across files additively for keys like `ports:`,
+# `volumes:`, and `build.args` rather than replacing them — which silently leaked dev-only
+# settings into "production" (Postgres published to the public internet on 5432, the Rails app
+# published on 3000, the live host source tree bind-mounted over the built image instead of what
+# was actually baked in, dev gems installed via BUNDLE_WITHOUT="", and the dev startup command
+# bypassing the real Dockerfile's Thruster-based CMD entirely). A standalone file makes that whole
+# class of bug structurally impossible instead of something to keep patching leak-by-leak.
+#
+# Run with: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
-  sidekiq:
+services:
+  # Self-hosted Postgres, replacing Supabase. Postgres 17 to match Supabase's version for
+  # pg_dump/restore compatibility. No `ports:` — reachable only from other containers on this
+  # compose network, never from the internet.
+  db_prod:
+    image: postgres:17
+    restart: unless-stopped
+    volumes:
+      - db_prod_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Backs Sidekiq's queue and the app's own REDIS constant. No `ports:` — internal only.
+  redis_prod:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Reverse proxy + TLS + static frontend, in one container. The only service with a `ports:`
+  # entry published beyond loopback — everything else (db_prod, redis_prod, web, sidekiq) is
+  # reachable only from other containers on this compose network, never directly from the
+  # internet. Caddy gets a real, browser-trusted Let's Encrypt cert automatically for
+  # ${FRONTEND_HOST} (no manual certbot steps) and reaches `web` internally at web:80.
+  caddy:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      FRONTEND_HOST: ${FRONTEND_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+    image: invoice_app:latest
+    restart: unless-stopped
+    # No `ports:` at all now — Caddy reaches this over the internal compose network (web:80).
+    # Not even loopback-published anymore, since Caddy supersedes the SSH-tunnel testing method
+    # this used during initial setup.
     volumes:
       - storage_prod:/rails/storage
+    depends_on:
+      db_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
     environment:
       RAILS_ENV: production
       RACK_ENV: production
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      DB_HOST: db_prod
+      DB_PORT: 5432
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
-      GMAIL_USER: ${GMAIL_USER}
-      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      REDIS_URL: redis://redis_prod:6379/0
+      FRONTEND_HOST: ${FRONTEND_HOST}
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
       AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY}
       AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY}
       AR_ENCRYPTION_KEY_DERIVATION_SALT: ${AR_ENCRYPTION_KEY_DERIVATION_SALT}
+      SOW_PROVIDER: ${SOW_PROVIDER:-}
+      SOW_API_KEY: ${SOW_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+  # Reuses the same image built for `web` (no separate build block) — just overrides the command,
+  # matching the pattern in the Dockerfile comment about running accessory processes off one image.
+  sidekiq:
+    image: invoice_app:latest
+    restart: unless-stopped
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    volumes:
+      - storage_prod:/rails/storage
+    depends_on:
+      db_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      RACK_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      DB_HOST: db_prod
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      REDIS_URL: redis://redis_prod:6379/0
+      FRONTEND_HOST: ${FRONTEND_HOST}
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY}
+      AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY}
+      AR_ENCRYPTION_KEY_DERIVATION_SALT: ${AR_ENCRYPTION_KEY_DERIVATION_SALT}
+      SOW_PROVIDER: ${SOW_PROVIDER:-}
+      SOW_API_KEY: ${SOW_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
 volumes:
   storage_prod:
-  ollama_data:
+  db_prod_data:
+  redis_prod_data:
+  caddy_data:
+  caddy_config:
