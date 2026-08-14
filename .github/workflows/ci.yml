@@ -114,6 +114,18 @@ jobs:
   # build. SSHes into the VPS and runs the same steps documented as the manual deploy process
   # in README.md's "Run Production" section. Deliberately does NOT depend on `lint` — style
   # issues shouldn't block a real deploy the way a failing test or security scan should.
+  #
+  # Migrations are run as an explicit, separate step (`db:migrate` before the container swap)
+  # rather than relying solely on the Dockerfile entrypoint's implicit `db:prepare` on `web`
+  # boot. That implicit path has two real gaps: `docker compose up -d` returns as soon as the
+  # container starts, without waiting to see if it stays up — a failed migration would crash-loop
+  # the container while this step (and the whole Actions run) still reports success. And Sidekiq's
+  # entrypoint never runs migrations at all, so it could start processing jobs against a
+  # not-yet-migrated schema if migration only happened implicitly on web's boot. Running migrate
+  # explicitly, before anything is swapped, fails loudly (`set -e`) if something's wrong.
+  #
+  # A fresh "pre-deploy" backup runs first, before touching anything — the nightly cron backup
+  # could be up to ~24h stale by the time a migration actually runs.
   deploy:
     runs-on: ubuntu-latest
     needs: [ scan_ruby, test, frontend ]
@@ -128,7 +140,15 @@ jobs:
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
+
+            bash scripts/backup.sh pre-deploy
+
             git fetch origin
             git checkout main
             git pull origin main
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+            docker compose -f docker-compose.prod.yml --env-file .env.prod build
+
+            docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm web bin/rails db:migrate
+
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d

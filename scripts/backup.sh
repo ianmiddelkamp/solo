@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+# First arg labels the backup by what triggered it. The deploy workflow passes "pre-deploy"
+# explicitly; anything run without an arg (the existing cron entry, or running it by hand)
+# defaults to "auto" — avoids needing to update the crontab entry just to add a label.
+REASON="${1:-auto}"
+
 BACKUP_DIR=~/backups/invoice
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 KEEP_DAYS=14
@@ -19,7 +24,7 @@ notify_fail() {
 }
 trap notify_fail ERR
 
-echo "=== Invoice App Backup ==="
+echo "=== Invoice App Backup ($REASON) ==="
 echo "Timestamp: $TIMESTAMP"
 echo ""
 
@@ -53,12 +58,20 @@ case "$ENV_FILE" in
     ;;
 esac
 
-DB_BACKUP_DIR=$BACKUP_DIR/$ENV_LABEL/db
-FILES_BACKUP_DIR=$BACKUP_DIR/$ENV_LABEL/files
+# One folder per backup run (reason + timestamp), db/ and files/ separated inside it — e.g.
+#   ~/backups/invoice/prod/pre-deploy_20260814_140300/db/invoice_prod.sql.gz
+#   ~/backups/invoice/prod/pre-deploy_20260814_140300/files/storage.tar.gz
+# so "the snapshot from right before that migration" is a single, obviously-named folder rather
+# than having to match up timestamps across separate flat db/ and files/ directories.
+RUN_LABEL="${REASON}_${TIMESTAMP}"
+RUN_DIR="$BACKUP_DIR/$ENV_LABEL/$RUN_LABEL"
+DB_BACKUP_DIR="$RUN_DIR/db"
+FILES_BACKUP_DIR="$RUN_DIR/files"
 
 mkdir -p "$DB_BACKUP_DIR" "$FILES_BACKUP_DIR"
 
 echo "Environment: $ENV_LABEL ($DB_HOST/$DB_NAME)"
+echo "Run folder:  $RUN_DIR"
 echo ""
 
 # --- Database ---
@@ -67,7 +80,7 @@ echo ""
 # from outside the compose network), so a host-side connection attempt would just fail. This
 # also means no postgresql-client needs to be installed on the host anymore.
 echo "📦 Backing up database..."
-DB_FILE="$DB_BACKUP_DIR/${DB_NAME}_$TIMESTAMP.sql.gz"
+DB_FILE="$DB_BACKUP_DIR/${DB_NAME}.sql.gz"
 
 $COMPOSE exec -T -e PGPASSWORD="$DB_PASS" db_prod \
   pg_dump -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges \
@@ -80,7 +93,7 @@ echo "   Saved: $DB_FILE ($DB_SIZE)"
 echo ""
 echo "📁 Backing up storage files..."
 STORAGE_VOLUME="invoice_app_storage_${ENV_LABEL}"
-FILES_FILE="$FILES_BACKUP_DIR/storage_$TIMESTAMP.tar.gz"
+FILES_FILE="$FILES_BACKUP_DIR/storage.tar.gz"
 
 if docker volume inspect "$STORAGE_VOLUME" &>/dev/null; then
   docker run --rm -v "${STORAGE_VOLUME}:/data" alpine tar -czf - -C /data . > "$FILES_FILE"
@@ -110,34 +123,38 @@ else
   # AWS regions. Without this, aws-cli falls back to some ambient/default region that R2 rejects.
   export AWS_DEFAULT_REGION="auto"
 
-  aws s3 cp "$DB_FILE" "s3://$R2_BUCKET/db/" --endpoint-url "$R2_ENDPOINT" --region auto --only-show-errors
-  echo "   Uploaded: db/$(basename "$DB_FILE")"
+  # Mirrors the same run-folder structure remotely: <bucket>/<run_label>/db/... and .../files/...
+  aws s3 cp "$DB_FILE" "s3://$R2_BUCKET/$RUN_LABEL/db/" --endpoint-url "$R2_ENDPOINT" --region auto --only-show-errors
+  echo "   Uploaded: $RUN_LABEL/db/$(basename "$DB_FILE")"
 
   if [ -f "$FILES_FILE" ]; then
-    aws s3 cp "$FILES_FILE" "s3://$R2_BUCKET/files/" --endpoint-url "$R2_ENDPOINT" --region auto --only-show-errors
-    echo "   Uploaded: files/$(basename "$FILES_FILE")"
+    aws s3 cp "$FILES_FILE" "s3://$R2_BUCKET/$RUN_LABEL/files/" --endpoint-url "$R2_ENDPOINT" --region auto --only-show-errors
+    echo "   Uploaded: $RUN_LABEL/files/$(basename "$FILES_FILE")"
   fi
 
   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 fi
 
 # --- Prune old backups ---
+# Prunes whole run-folders older than KEEP_DAYS (based on the folder's mtime), not individual
+# files within them, since a run-folder is the atomic unit now.
 echo ""
 echo "🧹 Pruning backups older than $KEEP_DAYS days..."
-DB_PRUNED=$(find "$DB_BACKUP_DIR" -name "*.sql.gz" -mtime +"$KEEP_DAYS" -print -delete | wc -l)
-FILES_PRUNED=$(find "$FILES_BACKUP_DIR" -name "*.tar.gz" -mtime +"$KEEP_DAYS" -print -delete | wc -l)
-echo "   Removed: $DB_PRUNED db backup(s), $FILES_PRUNED file backup(s)"
+PRUNED=$(find "$BACKUP_DIR/$ENV_LABEL" -mindepth 1 -maxdepth 1 -type d -mtime +"$KEEP_DAYS" -print)
+if [ -n "$PRUNED" ]; then
+  echo "$PRUNED" | while IFS= read -r dir; do rm -rf "$dir"; done
+fi
+PRUNED_COUNT=$(echo "$PRUNED" | grep -c . || true)
+echo "   Removed: $PRUNED_COUNT backup run(s)"
 
 # --- Summary ---
 echo ""
 echo "=== Summary ==="
 TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
-DB_COUNT=$(find "$DB_BACKUP_DIR" -name "*.sql.gz" | wc -l)
-FILES_COUNT=$(find "$FILES_BACKUP_DIR" -name "*.tar.gz" | wc -l)
-echo "   DB backups retained:   $DB_COUNT"
-echo "   File backups retained: $FILES_COUNT"
-echo "   Total backup size:     $TOTAL_SIZE"
-echo "   Location:              $BACKUP_DIR"
+RUN_COUNT=$(find "$BACKUP_DIR/$ENV_LABEL" -mindepth 1 -maxdepth 1 -type d | wc -l)
+echo "   Backup runs retained: $RUN_COUNT"
+echo "   Total backup size:    $TOTAL_SIZE"
+echo "   Location:             $BACKUP_DIR/$ENV_LABEL"
 echo ""
 echo "✅ Backup complete."
 

@@ -118,21 +118,37 @@ solo-prod exec web bin/rails db:migrate
 A backup script is provided at `scripts/backup.sh`. It dumps the self-hosted `db_prod` database and copies Active Storage files, then optionally ships both offsite.
 
 ```bash
-bash scripts/backup.sh
+bash scripts/backup.sh [reason]
+```
+
+`reason` labels what triggered the backup — the deploy workflow passes `pre-deploy` explicitly
+(run automatically by CI/CD before every migration); anything run without an arg (the cron job,
+or running it by hand) defaults to `auto`. Each run gets its own folder, `<reason>_<timestamp>`,
+with `db/` and `files/` separated inside it:
+
+```
+~/backups/invoice/prod/
+  pre-deploy_20260814_140300/
+    db/invoice_prod.sql.gz
+    files/storage.tar.gz
+  auto_20260815_030000/
+    db/invoice_prod.sql.gz
+    files/storage.tar.gz
 ```
 
 Run from the project root (`.env.prod` must exist). Requires `db_prod` to be running — the
 database dump runs via `docker compose exec db_prod pg_dump` (not a host-side `pg_dump`, since
 `db_prod` has no `ports:` mapping and isn't reachable from outside the compose network), so no
-`postgresql-client` install is needed on the host anymore. Backups are written to
-`~/backups/invoice/prod/` with timestamps and 14-day retention.
+`postgresql-client` install is needed on the host anymore. Whole run-folders older than 14 days
+are pruned.
 
 ### Offsite backups (Cloudflare R2)
 
 If `BACKUP_STORAGE_URL` / `BACKUP_STORAGE_ACCESS_KEY_ID` / `BACKUP_STORAGE_SECRET_ACCESS_KEY` are
 set in `.env.prod` (see `.env.example`), the script also uploads both files to Cloudflare R2
 (S3-compatible) after the local backup completes — so a VPS failure can't take out the backups
-along with the live data. Requires the `aws` CLI on the host:
+along with the live data. The same `<reason>_<timestamp>/db|files/` structure is mirrored in the
+R2 bucket. Requires the `aws` CLI on the host:
 
 ```bash
 sudo apt install -y awscli
