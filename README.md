@@ -128,7 +128,7 @@ solo-prod exec web bin/rails db:migrate
 
 ## Backups
 
-A backup script is provided at `scripts/backup.sh`. It dumps the Supabase database directly and copies Active Storage files.
+A backup script is provided at `scripts/backup.sh`. It dumps the self-hosted `db_prod` database and copies Active Storage files, then optionally ships both offsite.
 
 ```bash
 bash scripts/backup.sh
@@ -139,6 +139,20 @@ database dump runs via `docker compose exec db_prod pg_dump` (not a host-side `p
 `db_prod` has no `ports:` mapping and isn't reachable from outside the compose network), so no
 `postgresql-client` install is needed on the host anymore. Backups are written to
 `~/backups/invoice/prod/` with timestamps and 14-day retention.
+
+### Offsite backups (Cloudflare R2)
+
+If `BACKUP_STORAGE_URL` / `BACKUP_STORAGE_ACCESS_KEY_ID` / `BACKUP_STORAGE_SECRET_ACCESS_KEY` are
+set in `.env.prod` (see `.env.example`), the script also uploads both files to Cloudflare R2
+(S3-compatible) after the local backup completes — so a VPS failure can't take out the backups
+along with the live data. Requires the `aws` CLI on the host:
+
+```bash
+sudo apt install -y awscli
+```
+
+Without those env vars set (or without `aws` installed), the offsite step is skipped gracefully
+— the local backup still runs and completes normally.
 
 ## API Endpoints
 

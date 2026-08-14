@@ -78,6 +78,34 @@ else
   echo "   Skipped — storage volume not found (no files uploaded yet?)"
 fi
 
+# --- Offsite upload (Cloudflare R2, S3-compatible) ---
+echo ""
+if [ -z "${BACKUP_STORAGE_URL:-}" ] || [ -z "${BACKUP_STORAGE_ACCESS_KEY_ID:-}" ]; then
+  echo "☁️  Offsite upload skipped — BACKUP_STORAGE_* not set in $ENV_FILE"
+elif ! command -v aws &>/dev/null; then
+  echo "☁️  Offsite upload skipped — aws CLI not installed (sudo apt install -y awscli)"
+else
+  echo "☁️  Uploading offsite to Cloudflare R2..."
+  # BACKUP_STORAGE_URL includes the bucket as its path, e.g.
+  # https://<account_id>.r2.cloudflarestorage.com/<bucket_name> — split into the bare endpoint
+  # (everything before the last /) and the bucket name (everything after).
+  R2_ENDPOINT="${BACKUP_STORAGE_URL%/*}"
+  R2_BUCKET="${BACKUP_STORAGE_URL##*/}"
+
+  export AWS_ACCESS_KEY_ID="$BACKUP_STORAGE_ACCESS_KEY_ID"
+  export AWS_SECRET_ACCESS_KEY="$BACKUP_STORAGE_SECRET_ACCESS_KEY"
+
+  aws s3 cp "$DB_FILE" "s3://$R2_BUCKET/db/" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+  echo "   Uploaded: db/$(basename "$DB_FILE")"
+
+  if [ -f "$FILES_FILE" ]; then
+    aws s3 cp "$FILES_FILE" "s3://$R2_BUCKET/files/" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+    echo "   Uploaded: files/$(basename "$FILES_FILE")"
+  fi
+
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+fi
+
 # --- Prune old backups ---
 echo ""
 echo "🧹 Pruning backups older than $KEEP_DAYS days..."
