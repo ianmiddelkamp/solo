@@ -16,13 +16,6 @@ services:
     ports:
       - "6379:6379"
 
-  ollama:
-    image: ollama/ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-
   web:
     build:
       context: .
@@ -50,8 +43,6 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SOW_PROVIDER: ${SOW_PROVIDER:-}
       SOW_API_KEY: ${SOW_API_KEY:-}
-      SOW_OLLAMA_HOST: ${SOW_OLLAMA_HOST:-http://ollama:11434}
-      SOW_OLLAMA_MODEL: ${SOW_OLLAMA_MODEL:-phi3:mini}
       AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY}
       AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY}
       AR_ENCRYPTION_KEY_DERIVATION_SALT: ${AR_ENCRYPTION_KEY_DERIVATION_SALT}
@@ -79,10 +70,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      SOW_PROVIDER: ${SOW_PROVIDER:-ollama}
+      SOW_PROVIDER: ${SOW_PROVIDER:-anthropic}
       SOW_API_KEY: ${SOW_API_KEY:-}
-      SOW_OLLAMA_HOST: ${SOW_OLLAMA_HOST:-http://ollama:11434}
-      SOW_OLLAMA_MODEL: ${SOW_OLLAMA_MODEL:-phi3:mini}
       AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY}
       AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY}
       AR_ENCRYPTION_KEY_DERIVATION_SALT: ${AR_ENCRYPTION_KEY_DERIVATION_SALT}
@@ -101,5 +90,4 @@ services:
 
 volumes:
   db_data:
-  ollama_data:
   frontend_node_modules:

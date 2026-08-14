@@ -15,7 +15,6 @@ A Rails 8 API-only backend for Solo, a freelance invoicing and time tracking app
 - **Prawn** — PDF generation
 - **Active Storage** — file storage (PDFs, project attachments)
 - **Action Mailer** + **letter_opener_web** (dev) — email delivery
-- **Ollama** (via Docker) — local AI for SOW parsing
 
 ## Environments
 
@@ -27,7 +26,7 @@ Two isolated environments with separate databases and credentials.
 | PostgreSQL port | 5432 (host-published for local tools) | 5432 (internal to the compose network only) |
 | Rails env | `development` | `production` |
 | Email | letter_opener_web | SMTP (configure separately) |
-| Compose file | `docker-compose.yml` | `docker-compose.yml` + `docker-compose.prod.yml` |
+| Compose file | `docker-compose.yml` | `docker-compose.prod.yml` (standalone) |
 | Env file | `.env` | `.env.prod` |
 
 ## Getting Started
@@ -53,10 +52,8 @@ Fill in values before starting.
 | `DB_NAME` | Database name | `invoice_dev` |
 | `DB_USER` | PostgreSQL username | required |
 | `DB_PASS` | PostgreSQL password | required |
-| `SOW_PROVIDER` | AI provider for SOW import (`ollama`, `groq`, `anthropic`, `gemini`) | `ollama` |
-| `SOW_API_KEY` | API key (not needed for ollama) | — |
-| `SOW_OLLAMA_HOST` | Ollama service URL | `http://ollama:11434` |
-| `SOW_OLLAMA_MODEL` | Model to use with Ollama | `phi3:mini` |
+| `SOW_PROVIDER` | AI provider for SOW import (`groq`, `anthropic`, `gemini`) | `anthropic` |
+| `SOW_API_KEY` | API key for the chosen provider | required |
 
 ### Build and Run
 
@@ -71,16 +68,6 @@ This starts all services. On first run the frontend container installs its depen
 | Rails API | http://localhost:3000 |
 | React frontend | http://localhost:5173 |
 | Letter Opener (dev email) | http://localhost:3000/letter_opener |
-
-### First Run — Pull the AI Model
-
-On first startup, pull the Ollama model (one-time, ~2.3GB):
-
-```bash
-docker compose exec ollama ollama pull phi3:mini
-```
-
-The model is stored in a named Docker volume and persists across restarts.
 
 ### Database Setup (first run)
 
@@ -297,9 +284,8 @@ Projects have task groups, and task groups have tasks. Tasks have a status (`tod
 `POST /projects/:id/sow_import` accepts a `.md`, `.txt`, or `.docx` file (or raw `text` param) and uses an AI model to extract a task group with a flat list of tasks. The response is synchronous.
 
 To switch providers, set `SOW_PROVIDER` in `.env`:
-- `ollama` — local, private, free (default)
+- `anthropic` — Claude API (default)
 - `groq` — fast cloud inference, free tier available
-- `anthropic` — Claude API
 - `gemini` — Google Gemini API
 
 ### Project Attachments

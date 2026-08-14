@@ -123,7 +123,7 @@ Projects have a task board available on the project edit page and the timer page
 
 ### SOW Import
 
-Upload a `.md`, `.txt`, or `.docx` Statement of Work (or paste text directly) to generate a task group with a flat task list. Preview and edit before importing. Powered by a configurable AI backend — Ollama, Groq, Anthropic, or Gemini.
+Upload a `.md`, `.txt`, or `.docx` Statement of Work (or paste text directly) to generate a task group with a flat task list. Preview and edit before importing. Powered by a configurable AI backend — Groq, Anthropic, or Gemini.
 
 ### Timer Integration
 
