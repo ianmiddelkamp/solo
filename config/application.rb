@@ -32,5 +32,12 @@ module InvoiceApp
     config.active_job.queue_adapter = :sidekiq
     config.sow_provider = ENV.fetch("SOW_PROVIDER", nil)
     config.sow_api_key  = ENV.fetch("SOW_API_KEY", nil)
+
+    # Product name/description, used anywhere the app refers to itself (invite emails, mailer
+    # from-name fallback, etc.) rather than the inviting user's own business. Same across
+    # environments (unlike config.x.frontend_host, which genuinely differs per environment), so
+    # it lives here rather than being duplicated in config/environments/*.rb.
+    config.x.app_name        = ENV.fetch("APP_NAME", "Solo")
+    config.x.app_description = ENV.fetch("APP_DESCRIPTION", "freelance invoicing and time tracking app")
   end
 end

@@ -15,7 +15,7 @@
     <div class="wrapper">
       <div class="body">
         <p>Hi,</p>
-        <p><%= @inviter.name %> has invited you to <%= @business.name.presence || "Invoice App" %>.</p>
+        <p><%= @inviter.name %> has invited you to join <strong><%= @app_name %></strong>, a <%= @app_description %>.</p>
         <p><a href="<%= @accept_url %>" class="button">Accept invitation</a></p>
         <p>Or copy this link into your browser:<br/><%= @accept_url %></p>
       </div>
