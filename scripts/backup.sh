@@ -7,6 +7,18 @@ KEEP_DAYS=14
 
 COMPOSE="docker compose -f $HOME/invoice_app/docker-compose.prod.yml"
 
+# Pings Healthchecks.io on failure (any command failing under `set -e`, or an uncaught error) so
+# a missed/broken backup is actually noticed — not just a silently missing file weeks later.
+# HEALTHCHECK_URL comes from .env.prod (loaded below), not hardcoded here — guarded since this
+# trap is registered before that file is loaded, and `set -u` would otherwise error on the
+# unset var if a failure happens before then. `|| true` on every ping: never let the
+# notification itself be why the script fails.
+notify_fail() {
+  [ -n "${HEALTHCHECK_URL:-}" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL/fail" >/dev/null 2>&1
+  true
+}
+trap notify_fail ERR
+
 echo "=== Invoice App Backup ==="
 echo "Timestamp: $TIMESTAMP"
 echo ""
@@ -128,3 +140,7 @@ echo "   Total backup size:     $TOTAL_SIZE"
 echo "   Location:              $BACKUP_DIR"
 echo ""
 echo "✅ Backup complete."
+
+if [ -n "${HEALTHCHECK_URL:-}" ]; then
+  curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null 2>&1 || true
+fi
