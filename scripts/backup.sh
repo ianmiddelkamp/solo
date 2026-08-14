@@ -94,16 +94,19 @@ else
 
   export AWS_ACCESS_KEY_ID="$BACKUP_STORAGE_ACCESS_KEY_ID"
   export AWS_SECRET_ACCESS_KEY="$BACKUP_STORAGE_SECRET_ACCESS_KEY"
+  # R2 only accepts its own region set (auto, wnam, enam, weur, eeur, apac, oc) — not standard
+  # AWS regions. Without this, aws-cli falls back to some ambient/default region that R2 rejects.
+  export AWS_DEFAULT_REGION="auto"
 
-  aws s3 cp "$DB_FILE" "s3://$R2_BUCKET/db/" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+  aws s3 cp "$DB_FILE" "s3://$R2_BUCKET/db/" --endpoint-url "$R2_ENDPOINT" --region auto --only-show-errors
   echo "   Uploaded: db/$(basename "$DB_FILE")"
 
   if [ -f "$FILES_FILE" ]; then
-    aws s3 cp "$FILES_FILE" "s3://$R2_BUCKET/files/" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+    aws s3 cp "$FILES_FILE" "s3://$R2_BUCKET/files/" --endpoint-url "$R2_ENDPOINT" --region auto --only-show-errors
     echo "   Uploaded: files/$(basename "$FILES_FILE")"
   fi
 
-  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 fi
 
 # --- Prune old backups ---
