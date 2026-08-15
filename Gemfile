@@ -38,6 +38,10 @@ gem "jwt"
 gem "docx"
 gem "premailer-rails"
 
+# Error tracking (backend only — see project_monitoring_plan memory for why)
+gem "sentry-ruby"
+gem "sentry-rails"
+
 group :development do
   gem "letter_opener_web"
 end
