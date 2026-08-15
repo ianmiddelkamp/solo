@@ -97,6 +97,7 @@ services:
       SOW_PROVIDER: ${SOW_PROVIDER:-}
       SOW_API_KEY: ${SOW_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
 
   # Reuses the same image built for `web` (no separate build block) — just overrides the command,
   # matching the pattern in the Dockerfile comment about running accessory processes off one image.
@@ -130,6 +131,7 @@ services:
       SOW_PROVIDER: ${SOW_PROVIDER:-}
       SOW_API_KEY: ${SOW_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
 
 volumes:
   storage_prod:
