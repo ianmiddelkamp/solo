@@ -188,8 +188,9 @@ function TaskItem({ task, projectId, groupId, onUpdate, onDelete, onSelect, sele
           />
         ) : (
           <span
-            className={`flex-1 text-sm cursor-pointer hover:text-indigo-700 ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}
+            className={`flex-1 min-w-0 truncate text-sm cursor-pointer hover:text-indigo-700 ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}
             onClick={() => setEditing(true)}
+            title={task.title}
           >
             {task.title}
           </span>
@@ -634,7 +635,7 @@ export default function TaskBoard({ projectId, selectedTaskId, onSelectTask, tas
   }
 
   return (
-    <div className="max-w-[750px]">
+    <div className="w-full max-w-3xl">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Task Groups</h3>
 
       <DndContext

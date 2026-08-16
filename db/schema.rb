@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_175513) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_16_115638) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -56,6 +56,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_175513) do
     t.string "hst_number"
     t.text "invoice_footer"
     t.string "name"
+    t.integer "next_estimate_number", default: 1, null: false
+    t.integer "next_invoice_number", default: 1, null: false
     t.string "phone"
     t.string "postcode"
     t.string "primary_color", default: "#4338ca"
@@ -132,9 +134,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_175513) do
     t.jsonb "last_sent_snapshot"
     t.decimal "last_sent_total", precision: 10, scale: 2
     t.bigint "project_id", null: false
+    t.integer "sequence_number", null: false
     t.string "status", default: "draft", null: false
     t.decimal "total", precision: 10, scale: 2
     t.datetime "updated_at", null: false
+    t.index ["project_id", "sequence_number"], name: "index_estimates_on_project_id_and_sequence_number"
     t.index ["project_id"], name: "index_estimates_on_project_id"
   end
 
@@ -212,10 +216,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_175513) do
     t.date "end_date"
     t.datetime "paid_at"
     t.string "pdf_url"
+    t.integer "sequence_number", null: false
     t.date "start_date"
     t.string "status", default: "pending"
     t.decimal "total", precision: 10, scale: 2
     t.datetime "updated_at", null: false
+    t.index ["client_id", "sequence_number"], name: "index_invoices_on_client_id_and_sequence_number"
     t.index ["client_id"], name: "index_invoices_on_client_id"
   end
 
