@@ -2,7 +2,7 @@ class AuthController < ApplicationController
   skip_before_action :authenticate_user!
 
   def login
-    user = User.find_by(email: params[:email])
+    user = User.find_by(email: params[:email]&.strip&.downcase)
 
     if user&.authenticate(params[:password])
       token = JsonWebToken.encode(user_id: user.id)

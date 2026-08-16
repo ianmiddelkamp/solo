@@ -45,7 +45,7 @@ export default function ProjectEstimates({ projectId }: { projectId: number }) {
   }
 
   return (
-    <div className="max-w-[750px]">
+    <div className="max-w-3xl">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Estimates</h3>
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <div className="rounded-lg overflow-hidden border border-gray-200 mb-6">

@@ -10,12 +10,13 @@ class User < ApplicationRecord
   has_one :business_profile
   belongs_to :invited_by, class_name: "User", optional: true
 
-  validates :email, presence: true, uniqueness: true
+  validates :email, presence: true, uniqueness: { case_sensitive: false }
   validates :name, presence: true
   validates :role, inclusion: { in: ROLES }, allow_nil: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
   validate :password_complexity, if: -> { password_required? && password.present? }
 
+  before_validation :normalize_email
   before_validation :generate_invite_token, on: :create
 
   def admin?
@@ -36,6 +37,10 @@ class User < ApplicationRecord
   end
 
   private
+
+  def normalize_email
+    self.email = email.strip.downcase if email.present?
+  end
 
   # Password is required for a normal signup and when accepting an invite,
   # but not when an admin first creates the invited (not-yet-accepted) user row,

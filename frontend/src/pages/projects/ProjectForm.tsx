@@ -105,8 +105,8 @@ export default function ProjectForm() {
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>
       )}
 
-      <div className="flex gap-8 items-start">
-        <div className="w-96 flex-shrink-0">
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        <div className="w-full lg:w-96 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Details</h3>
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-5">
             <div>
@@ -178,43 +178,41 @@ export default function ProjectForm() {
               </button>
             </div>
           </form>
-          {isEdit && (
-            <>
-              <h3 className="text-lg font-semibold text-gray-800 mt-4">Project Actions</h3>
-              <div className="bg-white rounded-lg shadow p-6 space-y-5 my-5">
-
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={confirmArchive}
-                    className={`px-4 py-2 text-sm font-medium text-white rounded-md   ${archived ? "bg-indigo-600" : "bg-red-500"}`}>
-                    {archived ? "Un-archive" : "Archive"}
-                  </button>
-
-                </div>
-
-              </div>
-            </>
-          )}
-
         </div>
 
         {isEdit && projectId && (
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
             <TaskBoard projectId={projectId} />
           </div>
         )}
-        {isEdit && projectId && (
-          <div className="flex-1 min-w-0">
-            <ProjectEstimates projectId={projectId} />
-          </div>
-        )}
-        {isEdit && projectId && (
-          <div className="flex-1 min-w-0">
-            <ProjectAttachments projectId={projectId} />
-          </div>
-        )}
       </div>
+
+      {isEdit && projectId && (
+        <div className="mt-8">
+          <ProjectEstimates projectId={projectId} />
+        </div>
+      )}
+      {isEdit && projectId && (
+        <div className="mt-8">
+          <ProjectAttachments projectId={projectId} />
+        </div>
+      )}
+
+      {isEdit && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Actions</h3>
+          <div className="bg-white rounded-lg shadow p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={confirmArchive}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${archived ? "bg-indigo-600" : "bg-red-500"}`}>
+                {archived ? "Un-archive" : "Archive"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

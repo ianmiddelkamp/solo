@@ -42,4 +42,16 @@ class UserTest < ActiveSupport::TestCase
     assert users(:admin).admin?
     assert_not users(:member).admin?
   end
+
+  test "normalizes email to lowercase and stripped on save" do
+    user = User.new(name: "New User", email: "  New@Example.COM  ", password: "password123")
+    assert user.save, user.errors.full_messages.to_s
+    assert_equal "new@example.com", user.email
+  end
+
+  test "email uniqueness is case-insensitive" do
+    user = User.new(name: "Duplicate", email: "ADMIN@EXAMPLE.COM", password: "password123")
+    assert_not user.save
+    assert_includes user.errors[:email], "has already been taken"
+  end
 end

@@ -74,7 +74,7 @@ export default function ProjectAttachments({ projectId }: { projectId: number })
   }
 
   return (
-    <div className="mt-10">
+    <div className="max-w-3xl">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Files</h3>
 
       {error && (
