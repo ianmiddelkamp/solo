@@ -10,7 +10,7 @@
 <table>
   <thead>
     <tr>
-      <th>Task</th>
+      <th>Description</th>
       <th class="right">Est. Hours</th>
       <th class="right">Rate</th>
       <th class="right">Amount</th>
@@ -18,7 +18,8 @@
   </thead>
   <tbody>
     <% @items.each do |item| %>
-      <% done = item.task&.status == 'done'
+      <% is_disbursement = item.disbursement_id.present?
+         done = item.task&.status == 'done'
          actual_hours = done ? item.task.actual_hours.to_f : nil
          display_amount = done ? (actual_hours * item.rate) : item.amount %>
       <tr>
@@ -29,13 +30,15 @@
           <% end %>
         </td>
         <td class="right">
-          <% if done %>
+          <% if is_disbursement %>
+            &mdash;
+          <% elsif done %>
             <span style="color:#6b7280;">est. <%= "%.2f" % item.hours %> &rarr;</span> <strong><%= "%.2f" % actual_hours %></strong>
           <% else %>
             <%= "%.2f" % item.hours %>
           <% end %>
         </td>
-        <td class="right">$<%= "%.2f" % item.rate %></td>
+        <td class="right"><%= is_disbursement ? "&mdash;".html_safe : "$#{"%.2f" % item.rate}" %></td>
         <td class="right">$<%= "%.2f" % display_amount %></td>
       </tr>
     <% end %>

@@ -156,6 +156,16 @@ export interface BusinessProfile {
   email_configured?: boolean;
 }
 
+export interface Disbursement {
+  id: number;
+  project_id: number;
+  description: string;
+  amount: number;
+  incurred_on: string | null;
+  paid: boolean;
+  created_at: string;
+}
+
 export interface EstimateLineItem {
   id: number;
   description: string | null;
@@ -164,6 +174,7 @@ export interface EstimateLineItem {
   amount: number;
   tax_rate: string | null;
   task?: Pick<Task, 'id' | 'status' | 'actual_hours'>;
+  disbursement?: Pick<Disbursement, 'id' | 'description'>;
 }
 
 export interface EstimateChanges {

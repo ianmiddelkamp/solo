@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_16_115638) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_16_125912) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -115,16 +115,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_16_115638) do
     t.index ["business_profile_id"], name: "index_clients_on_business_profile_id"
   end
 
+  create_table "disbursements", force: :cascade do |t|
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.string "description", null: false
+    t.date "incurred_on"
+    t.boolean "paid", default: false, null: false
+    t.bigint "project_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_disbursements_on_project_id"
+  end
+
   create_table "estimate_line_items", force: :cascade do |t|
     t.decimal "amount", precision: 10, scale: 2, null: false
     t.datetime "created_at", null: false
     t.string "description"
+    t.bigint "disbursement_id"
     t.bigint "estimate_id", null: false
     t.decimal "hours", precision: 5, scale: 2, null: false
     t.decimal "rate", precision: 8, scale: 2, null: false
     t.bigint "task_id"
     t.decimal "tax_rate", precision: 5, scale: 2, default: "0.0", null: false
     t.datetime "updated_at", null: false
+    t.index ["disbursement_id"], name: "index_estimate_line_items_on_disbursement_id"
     t.index ["estimate_id"], name: "index_estimate_line_items_on_estimate_id"
     t.index ["task_id"], name: "index_estimate_line_items_on_task_id"
   end
@@ -322,6 +335,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_16_115638) do
   add_foreign_key "cca_assets", "business_profiles"
   add_foreign_key "charge_codes", "users"
   add_foreign_key "clients", "business_profiles"
+  add_foreign_key "disbursements", "projects"
+  add_foreign_key "estimate_line_items", "disbursements"
   add_foreign_key "estimate_line_items", "estimates"
   add_foreign_key "estimate_line_items", "tasks", on_delete: :nullify
   add_foreign_key "estimates", "projects"
