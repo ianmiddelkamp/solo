@@ -66,12 +66,13 @@ class EstimatesController < ApplicationController
     @estimate.update!(
       last_sent_snapshot: snapshot_items.map { |i|
         {
-          "task_id"      => i.task_id,
-          "description"  => i.description,
-          "hours"        => i.hours.to_f,
-          "amount"       => i.amount.to_f,
-          "status"       => i.task&.status,
-          "actual_hours" => i.task&.actual_hours.to_f
+          "task_id"         => i.task_id,
+          "disbursement_id" => i.disbursement_id,
+          "description"     => i.description,
+          "hours"           => i.hours.to_f,
+          "amount"          => i.amount.to_f,
+          "status"          => i.task&.status,
+          "actual_hours"    => i.task&.actual_hours.to_f
         }
       },
       last_sent_total: snapshot_items.sum { |i| i.task&.status == "done" ? i.task.actual_hours.to_f * i.rate : i.amount } +
@@ -106,7 +107,9 @@ class EstimatesController < ApplicationController
   private
 
   def set_estimate
-    @estimate = current_business_profile.estimates.includes(estimate_line_items: { task: :time_entries }).find(params[:id])
+    @estimate = current_business_profile.estimates
+      .includes(estimate_line_items: [{ task: :time_entries }, :disbursement])
+      .find(params[:id])
   end
 
   def diff_since_last_sent(estimate)
@@ -126,28 +129,34 @@ class EstimatesController < ApplicationController
 
     return nil unless snapshot.present?
 
-    prev_by_task = snapshot.index_by { |i| i["task_id"] }
-    curr_items   = estimate.estimate_line_items.includes(task: :time_entries).map { |i|
+    # Every line item has either a task_id or a disbursement_id, never both — task_id alone
+    # can't key this index because every disbursement row shares the same nil task_id and would
+    # collide under it. Fall back to a disambiguated disbursement key when there's no task.
+    item_key = ->(i) { i["task_id"] || "disbursement-#{i["disbursement_id"]}" }
+
+    prev_by_key = snapshot.index_by { |i| item_key.call(i) }
+    curr_items  = estimate.estimate_line_items.includes(task: :time_entries).map { |i|
       {
-        "task_id"      => i.task_id,
-        "description"  => i.description,
-        "hours"        => i.hours.to_f,
-        "amount"       => i.amount.to_f,
-        "completed"    => i.task&.status == "done",
-        "actual_hours" => i.task&.actual_hours&.to_f
+        "task_id"         => i.task_id,
+        "disbursement_id" => i.disbursement_id,
+        "description"     => i.description,
+        "hours"           => i.hours.to_f,
+        "amount"          => i.amount.to_f,
+        "completed"       => i.task&.status == "done",
+        "actual_hours"    => i.task&.actual_hours&.to_f
       }
     }
-    curr_by_task = curr_items.index_by { |i| i["task_id"] }
+    curr_by_key = curr_items.index_by { |i| item_key.call(i) }
 
-    added     = curr_items.reject { |i| prev_by_task[i["task_id"]] }
-    removed   = snapshot.reject { |i| curr_by_task[i["task_id"]] }
+    added     = curr_items.reject { |i| prev_by_key[item_key.call(i)] }
+    removed   = snapshot.reject { |i| curr_by_key[item_key.call(i)] }
     changed   = curr_items.filter_map do |i|
-      prev = prev_by_task[i["task_id"]]
+      prev = prev_by_key[item_key.call(i)]
       next unless prev && prev["hours"] != i["hours"]
       { "description" => i["description"], "old_hours" => prev["hours"], "new_hours" => i["hours"] }
     end
     completed = curr_items.filter_map do |i|
-      prev = prev_by_task[i["task_id"]]
+      prev = prev_by_key[item_key.call(i)]
       next unless i["completed"]
       prev_actual = prev&.dig("actual_hours").to_f
       next if i["actual_hours"].to_f == prev_actual
@@ -185,7 +194,10 @@ class EstimatesController < ApplicationController
           include: { client: {} }
         },
         estimate_line_items: {
-          include: { task: { only: %i[id title status], methods: %i[actual_hours] } }
+          include: {
+            task: { only: %i[id title status], methods: %i[actual_hours] },
+            disbursement: { only: %i[id description] }
+          }
         }
       }
     )

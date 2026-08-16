@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getProject, createProject, updateProject, toggleArchive } from '../../api/projects';
 import { getClients } from '../../api/clients';
 import { getProjectRate, setProjectRate, getClientRate } from '../../api/rates';
 import PageHeader from '../../components/PageHeader';
 import TaskBoard from '../../components/TaskBoard';
+import ProjectDisbursements from '../../components/ProjectDisbursements';
 import ProjectEstimates from '../../components/ProjectEstimates';
 import ProjectAttachments from '../../components/ProjectAttachments';
 import type { Client } from '../../types';
@@ -24,6 +25,17 @@ export default function ProjectForm() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [archived, setArchived] = useState(false)
+
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const tasksRef = useRef<HTMLDivElement>(null);
+  const disbursementsRef = useRef<HTMLDivElement>(null);
+  const estimatesRef = useRef<HTMLDivElement>(null);
+  const filesRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  function scrollToSection(ref: React.RefObject<HTMLDivElement | null>) {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   useEffect(() => {
     getClients().then((data) => { if (data) setClients(data); }).catch((e) => setError(e.message));
@@ -97,6 +109,17 @@ export default function ProjectForm() {
     }
   }
 
+  const sections = isEdit && projectId
+    ? [
+        { label: 'Details', ref: detailsRef },
+        { label: 'Task Groups', ref: tasksRef },
+        { label: 'Disbursements', ref: disbursementsRef },
+        { label: 'Estimates', ref: estimatesRef },
+        { label: 'Files', ref: filesRef },
+        { label: 'Actions', ref: actionsRef },
+      ]
+    : [];
+
   return (
     <div className="p-8">
       <PageHeader title={isEdit ? 'Edit Project' : 'New Project'} />
@@ -105,8 +128,28 @@ export default function ProjectForm() {
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
-        <div className="w-full lg:w-96 flex-shrink-0">
+      {sections.length > 0 && (
+        <nav
+          className="hidden xl:flex flex-col gap-1 fixed right-6 top-1/2 -translate-y-1/2 z-10
+                     bg-white rounded-xl shadow border border-gray-200 py-3 px-1"
+          aria-label="Project sections"
+        >
+          {sections.map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => scrollToSection(s.ref)}
+              className="group flex items-center gap-2 text-left text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-gray-50 rounded-md px-3 py-1.5 whitespace-nowrap transition-colors"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-indigo-500 transition-colors flex-shrink-0" />
+              {s.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <div className="flex flex-col gap-8 items-stretch">
+        <div ref={detailsRef} className="w-full max-w-3xl scroll-mt-8">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Details</h3>
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-5">
             <div>
@@ -181,38 +224,43 @@ export default function ProjectForm() {
         </div>
 
         {isEdit && projectId && (
-          <div className="flex-1 min-w-0 w-full">
+          <div ref={tasksRef} className="w-full scroll-mt-8">
             <TaskBoard projectId={projectId} />
           </div>
         )}
-      </div>
 
-      {isEdit && projectId && (
-        <div className="mt-8">
-          <ProjectEstimates projectId={projectId} />
-        </div>
-      )}
-      {isEdit && projectId && (
-        <div className="mt-8">
-          <ProjectAttachments projectId={projectId} />
-        </div>
-      )}
+        {isEdit && projectId && (
+          <div ref={disbursementsRef} className="w-full scroll-mt-8">
+            <ProjectDisbursements projectId={projectId} />
+          </div>
+        )}
+        {isEdit && projectId && (
+          <div ref={estimatesRef} className="w-full scroll-mt-8">
+            <ProjectEstimates projectId={projectId} />
+          </div>
+        )}
+        {isEdit && projectId && (
+          <div ref={filesRef} className="w-full scroll-mt-8">
+            <ProjectAttachments projectId={projectId} />
+          </div>
+        )}
 
-      {isEdit && (
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Actions</h3>
-          <div className="bg-white rounded-lg shadow p-6 space-y-5">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={confirmArchive}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${archived ? "bg-indigo-600" : "bg-red-500"}`}>
-                {archived ? "Un-archive" : "Archive"}
-              </button>
+        {isEdit && (
+          <div ref={actionsRef} className="w-full scroll-mt-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Actions</h3>
+            <div className="bg-white rounded-lg shadow p-6 space-y-5">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={confirmArchive}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-md ${archived ? "bg-indigo-600" : "bg-red-500"}`}>
+                  {archived ? "Un-archive" : "Archive"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -211,7 +211,7 @@ export default function EstimateDetail() {
         <table className="w-full border-collapse">
           <thead>
             <tr style={{ backgroundColor: brand }}>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wide">Task</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wide">Description</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Est. Hours</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Rate</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Amount</th>
@@ -219,6 +219,7 @@ export default function EstimateDetail() {
           </thead>
           <tbody>
             {estimate.estimate_line_items?.map((item, i) => {
+              const isDisbursement = Boolean(item.disbursement);
               const done = item.task?.status === 'done';
               const actualHours = done ? (item.task?.actual_hours ?? 0) : null;
               const displayAmount = done ? ((actualHours ?? 0) * item.rate) : item.amount;
@@ -235,13 +236,17 @@ export default function EstimateDetail() {
                     </div>
                   </td>
                   <td className="px-3 py-2 text-sm text-right border-b border-gray-200">
-                    {done ? (
+                    {isDisbursement ? (
+                      <span className="text-gray-400">—</span>
+                    ) : done ? (
                       <span className="text-gray-500">est. {item.hours.toFixed(2)} → <strong className="text-gray-900">{actualHours!.toFixed(2)}</strong></span>
                     ) : (
                       <span className="text-gray-900">{item.hours.toFixed(2)}</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 text-right border-b border-gray-200">${item.rate.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-sm text-gray-900 text-right border-b border-gray-200">
+                    {isDisbursement ? <span className="text-gray-400">—</span> : `$${item.rate.toFixed(2)}`}
+                  </td>
                   <td className="px-3 py-2 text-sm font-medium text-gray-900 text-right border-b border-gray-200">${displayAmount.toFixed(2)}</td>
                 </tr>
               );
