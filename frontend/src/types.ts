@@ -1,13 +1,24 @@
 import { DateTime } from "luxon";
 
+export interface Role {
+  id: number;
+  name: string;
+}
+
+export interface Contact {
+  id: number;
+  client_id: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  phone2?: string | null;
+  primary: boolean;
+  roles?: Role[];
+}
+
 export interface Client {
   id: number;
   name: string;
-  contact_name?: string | null;
-  email1?: string | null;
-  email2?: string | null;
-  phone1?: string | null;
-  phone2?: string | null;
   address1?: string | null;
   address2?: string | null;
   city?: string | null;
@@ -17,6 +28,8 @@ export interface Client {
   sales_terms?: string | null;
   current_rate?: number | null;
   notes?: string | null;
+  contacts?: Contact[];
+  primary_contact?: Contact | null;
 }
 
 export interface Project {
@@ -78,6 +91,7 @@ export interface Invoice {
   end_date: string | null;
   created_at?: string;
   client?: Client;
+  contact?: Contact;
   notes?: string | null;
   invoice_line_items?: InvoiceLineItemDetail[];
   paid_at?: string | null;
@@ -195,6 +209,7 @@ export interface Estimate {
   total: number | null;
   created_at: string;
   project?: Project & { client?: Client };
+  contact?: Contact;
   estimate_line_items?: EstimateLineItem[];
   changes?: EstimateChanges;
 }

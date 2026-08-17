@@ -1,4 +1,4 @@
-Hi <%= @client.contact_name.presence || @client.name %>,
+Hi <%= @contact.name.presence || @client.name %>,
 
 Thank you — we have received your payment of $<%= "%.2f" % @invoice.amount_paid %> on <%= @invoice.paid_at.in_time_zone.strftime("%B %-d, %Y") %>.
 

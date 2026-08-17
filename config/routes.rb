@@ -77,6 +77,7 @@ Rails.application.routes.draw do
 
   resources :clients do
     resource :rate, only: [:show, :update]
+    resources :contacts, only: [:index, :create, :update, :destroy]
   end
   resources :projects do
     member do

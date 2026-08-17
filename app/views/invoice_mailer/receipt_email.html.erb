@@ -29,7 +29,7 @@
       </table>
 
       <div class="body">
-        <p>Hi <%= @client.contact_name.presence || @client.name %>,</p>
+        <p>Hi <%= @contact.name.presence || @client.name %>,</p>
         <p>Thank you — we have received your payment of <strong>$<%= "%.2f" % @invoice.amount_paid %></strong> on <strong><%= @invoice.paid_at.in_time_zone.strftime("%B %-d, %Y") %></strong>.</p>
         <p>Your paid invoice is attached for your records.</p>
         <p><%= @business.invoice_footer.presence || "Thank you for your business." %></p>

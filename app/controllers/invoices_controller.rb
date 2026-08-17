@@ -37,10 +37,12 @@ class InvoicesController < ApplicationController
 
   def create
     client = current_business_profile.clients.find(params[:client_id])
+    contact = resolve_contact(client, params[:contact_id])
 
     begin
       invoice = InvoiceGenerator.new(
         client: client,
+        contact: contact,
         start_date: params[:start_date],
         end_date: params[:end_date],
         time_entry_ids: params[:time_entry_ids]
@@ -56,18 +58,28 @@ class InvoicesController < ApplicationController
       return
     end
 
-    pdf_data = PdfGenerator.new(invoice).generate
-    invoice.pdf.attach(
-      io: StringIO.new(pdf_data),
-      filename: "#{invoice.number}.pdf",
-      content_type: "application/pdf"
-    )
+    regenerate_invoice_pdf!(invoice)
 
     render json: invoice_json(invoice), status: :created
   end
 
   def update
+    attrs = invoice_params.to_h
+    contact_changing = attrs.key?("contact_id") && attrs["contact_id"].to_i != @invoice.contact_id
+    if attrs.key?("contact_id")
+      contact = current_business_profile.contacts.find_by(id: attrs["contact_id"])
+      unless contact && contact.client_id == @invoice.client_id
+        render json: { errors: ["Contact must belong to this invoice's client."] }, status: :unprocessable_entity
+        return
+      end
+    end
+
     if @invoice.update(invoice_params)
+      # The "Bill To" contact is shown as part of the document preview even though it's only
+      # metadata on the record — regenerating here means what's displayed always matches what's
+      # actually stored/attached, so there's never a stale PDF with the old contact's info still
+      # printed on it after an edit.
+      regenerate_invoice_pdf!(@invoice) if contact_changing && @invoice.pdf.attached?
       render json: invoice_json(@invoice)
     else
       render json: { errors: @invoice.errors.full_messages }, status: :unprocessable_entity
@@ -85,41 +97,32 @@ class InvoicesController < ApplicationController
   end
 
   def send_invoice
-    unless @invoice.client.email1.present?
-      render json: { error: "Client has no email address on file." }, status: :unprocessable_entity
-      return
-    end
+    contact = resolve_send_contact(@invoice)
+    return unless contact
 
     unless @invoice.pdf.attached?
       render json: { error: "No PDF found. Please regenerate the PDF first." }, status: :unprocessable_entity
       return
     end
 
-    InvoiceMailer.invoice_email(@invoice).deliver_now
-    render json: { message: "Invoice sent to #{@invoice.client.email1}." }
+    InvoiceMailer.invoice_email(@invoice, contact).deliver_now
+    render json: { message: "Invoice sent to #{contact.email}." }
   end
 
   def send_receipt
-    unless @invoice.client.email1.present?
-      render json: { error: "Client has no email address on file." }, status: :unprocessable_entity
-      return
-    end
+    contact = resolve_send_contact(@invoice)
+    return unless contact
 
     unless @invoice.pdf.attached?
       render json: { error: "No PDF found. Please regenerate the PDF first." }, status: :unprocessable_entity
       return
     end
 
-    InvoiceMailer.receipt_email(@invoice).deliver_now
-    render json: { message: "Receipt sent to #{@invoice.client.email1}." }
+    InvoiceMailer.receipt_email(@invoice, contact).deliver_now
+    render json: { message: "Receipt sent to #{contact.email}." }
   end
   def regenerate_pdf
-    pdf_data = PdfGenerator.new(@invoice).generate
-    @invoice.pdf.attach(
-      io: StringIO.new(pdf_data),
-      filename: "#{@invoice.number}.pdf",
-      content_type: "application/pdf"
-    )
+    regenerate_invoice_pdf!(@invoice)
     render json: { message: "PDF regenerated successfully" }
   end
 
@@ -152,18 +155,59 @@ class InvoicesController < ApplicationController
   private
 
   def set_invoice
-    @invoice = current_business_profile.invoices.find(params[:id])
+    @invoice = current_business_profile.invoices.includes(:contact).find(params[:id])
+  end
+
+  def regenerate_invoice_pdf!(invoice)
+    pdf_data = PdfGenerator.new(invoice).generate
+    invoice.pdf.attach(
+      io: StringIO.new(pdf_data),
+      filename: "#{invoice.number}.pdf",
+      content_type: "application/pdf"
+    )
+  end
+
+  # Defaults to the client's primary contact when none is given; raises RecordNotFound (rendered
+  # as a 404 by ApplicationController, matching every other tenant-scoped .find in this app) if a
+  # contact_id is given but doesn't belong to this client.
+  def resolve_contact(client, contact_id)
+    return client.primary_contact if contact_id.blank?
+    current_business_profile.contacts.where(client: client).find(contact_id)
+  end
+
+  # Shared by send_invoice/send_receipt: resolves an optional per-send contact_id override,
+  # falling back to the invoice's stored contact, and renders the appropriate error (returning
+  # nil) if the resolved contact is invalid or has no email — callers check the return value.
+  def resolve_send_contact(invoice)
+    contact = if params[:contact_id].present?
+      current_business_profile.contacts.find_by(id: params[:contact_id])
+    else
+      invoice.contact
+    end
+
+    unless contact && contact.client_id == invoice.client_id
+      render json: { error: "Contact must belong to this invoice's client." }, status: :unprocessable_entity
+      return nil
+    end
+
+    unless contact.email.present?
+      render json: { error: "Contact has no email address on file." }, status: :unprocessable_entity
+      return nil
+    end
+
+    contact
   end
 
   def invoice_params
-    params.require(:invoice).permit(:status)
+    params.require(:invoice).permit(:status, :contact_id)
   end
 
   def invoice_json(invoice)
     invoice.as_json(
       methods: :number,
       include: {
-        client: {},
+        client: { include: { contacts: { only: %i[id name email phone phone2 primary] } } },
+        contact: { only: %i[id name email phone phone2 primary] },
         invoice_line_items: {
           include: { time_entry: { include: [:project, :charge_code] } }
         }

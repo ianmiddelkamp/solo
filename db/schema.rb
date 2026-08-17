@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_17_131731) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -100,19 +100,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
     t.string "address2"
     t.bigint "business_profile_id", null: false
     t.string "city"
-    t.string "contact_name"
     t.string "country"
     t.datetime "created_at", null: false
-    t.string "email1"
-    t.string "email2"
     t.string "name", null: false
-    t.string "phone1"
-    t.string "phone2"
     t.string "postcode"
     t.string "sales_terms", default: "NET 15"
     t.string "state"
     t.datetime "updated_at", null: false
     t.index ["business_profile_id"], name: "index_clients_on_business_profile_id"
+  end
+
+  create_table "contact_roles", force: :cascade do |t|
+    t.bigint "contact_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "role_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contact_id", "role_id"], name: "index_contact_roles_on_contact_id_and_role_id", unique: true
+    t.index ["contact_id"], name: "index_contact_roles_on_contact_id"
+    t.index ["role_id"], name: "index_contact_roles_on_role_id"
+  end
+
+  create_table "contacts", force: :cascade do |t|
+    t.bigint "client_id", null: false
+    t.datetime "created_at", null: false
+    t.string "email"
+    t.string "name", null: false
+    t.string "phone"
+    t.string "phone2"
+    t.boolean "primary", default: false, null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_contacts_on_client_id"
+    t.index ["client_id"], name: "index_contacts_on_client_id_one_primary", unique: true, where: "\"primary\""
   end
 
   create_table "disbursements", force: :cascade do |t|
@@ -143,6 +161,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
   end
 
   create_table "estimates", force: :cascade do |t|
+    t.bigint "contact_id", null: false
     t.datetime "created_at", null: false
     t.jsonb "last_sent_snapshot"
     t.decimal "last_sent_total", precision: 10, scale: 2
@@ -151,6 +170,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
     t.string "status", default: "draft", null: false
     t.decimal "total", precision: 10, scale: 2
     t.datetime "updated_at", null: false
+    t.index ["contact_id"], name: "index_estimates_on_contact_id"
     t.index ["project_id", "sequence_number"], name: "index_estimates_on_project_id_and_sequence_number"
     t.index ["project_id"], name: "index_estimates_on_project_id"
   end
@@ -236,6 +256,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
   create_table "invoices", force: :cascade do |t|
     t.decimal "amount_paid", precision: 10, scale: 2
     t.bigint "client_id", null: false
+    t.bigint "contact_id", null: false
     t.datetime "created_at", null: false
     t.date "end_date"
     t.datetime "paid_at"
@@ -247,6 +268,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
     t.datetime "updated_at", null: false
     t.index ["client_id", "sequence_number"], name: "index_invoices_on_client_id_and_sequence_number"
     t.index ["client_id"], name: "index_invoices_on_client_id"
+    t.index ["contact_id"], name: "index_invoices_on_contact_id"
   end
 
   create_table "projects", force: :cascade do |t|
@@ -269,6 +291,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
     t.index ["client_id"], name: "index_rates_on_client_id"
     t.index ["project_id"], name: "index_rates_on_project_id"
     t.index ["user_id"], name: "index_rates_on_user_id"
+  end
+
+  create_table "roles", force: :cascade do |t|
+    t.bigint "client_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id", "name"], name: "index_roles_on_client_id_and_name", unique: true
+    t.index ["client_id"], name: "index_roles_on_client_id"
   end
 
   create_table "task_groups", force: :cascade do |t|
@@ -351,10 +382,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
   add_foreign_key "cca_assets", "business_profiles"
   add_foreign_key "charge_codes", "users"
   add_foreign_key "clients", "business_profiles"
+  add_foreign_key "contact_roles", "contacts"
+  add_foreign_key "contact_roles", "roles"
+  add_foreign_key "contacts", "clients"
   add_foreign_key "disbursements", "projects"
   add_foreign_key "estimate_line_items", "disbursements"
   add_foreign_key "estimate_line_items", "estimates"
   add_foreign_key "estimate_line_items", "tasks", on_delete: :nullify
+  add_foreign_key "estimates", "contacts"
   add_foreign_key "estimates", "projects"
   add_foreign_key "expenses", "business_profiles"
   add_foreign_key "home_office_profiles", "business_profiles"
@@ -364,10 +399,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
   add_foreign_key "invoice_line_items", "invoices"
   add_foreign_key "invoice_line_items", "time_entries"
   add_foreign_key "invoices", "clients"
+  add_foreign_key "invoices", "contacts"
   add_foreign_key "projects", "clients"
   add_foreign_key "rates", "clients"
   add_foreign_key "rates", "projects"
   add_foreign_key "rates", "users"
+  add_foreign_key "roles", "clients"
   add_foreign_key "task_groups", "projects"
   add_foreign_key "tasks", "task_groups"
   add_foreign_key "time_entries", "charge_codes"

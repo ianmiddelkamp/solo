@@ -1,5 +1,6 @@
 class Estimate < ApplicationRecord
   belongs_to :project
+  belongs_to :contact
   has_one :client, through: :project
   has_many :estimate_line_items, dependent: :destroy
 

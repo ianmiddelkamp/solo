@@ -1,4 +1,4 @@
-Hi <%= @client.contact_name.presence || @client.name %>,
+Hi <%= @contact.name.presence || @client.name %>,
 
 <% if @changes %>
 Please find an updated estimate (<%= @estimate.number %>) for project "<%= @project.name %>" attached.

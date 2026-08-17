@@ -36,9 +36,9 @@
     <div class="party-label"><%= to_label %></div>
     <div class="party-name"><%= client.name %></div>
     <div class="party-detail">
-      <% if client.contact_name.present? %><%= client.contact_name %><br/><% end %>
-      <% if client.email1.present? %><%= client.email1 %><br/><% end %>
-      <% if client.phone1.present? %><%= client.phone1 %><br/><% end %>
+      <% if contact&.name.present? %><%= contact.name %><br/><% end %>
+      <% if contact&.email.present? %><%= contact.email %><br/><% end %>
+      <% if contact&.phone.present? %><%= contact.phone %><br/><% end %>
       <% address = [client.address1, client.city, client.state, client.postcode].compact_blank %>
       <% if address.any? %><%= address.join(", ") %><% end %>
     </div>

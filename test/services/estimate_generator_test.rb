@@ -7,13 +7,19 @@ class EstimateGeneratorTest < ActiveSupport::TestCase
     Project.create!(client: client, name: "Project")
   end
 
+  def contact_for(project)
+    project.client.contacts.create!(name: "Contact", primary: true)
+  end
+
   test "generates a line item for a disbursement-only project (no estimable tasks)" do
     project = build_project
+    contact = contact_for(project)
     disbursement = project.disbursements.create!(description: "Filing fee", amount: 40)
 
-    estimate = EstimateGenerator.new(project: project).generate!
+    estimate = EstimateGenerator.new(project: project, contact: contact).generate!
 
     assert_not_nil estimate
+    assert_equal contact, estimate.contact
     assert_equal 1, estimate.estimate_line_items.count
     item = estimate.estimate_line_items.first
     assert_equal disbursement, item.disbursement
@@ -24,17 +30,19 @@ class EstimateGeneratorTest < ActiveSupport::TestCase
 
   test "returns nil when the project has no estimable tasks and no disbursements" do
     project = build_project
-    assert_nil EstimateGenerator.new(project: project).generate!
+    contact = contact_for(project)
+    assert_nil EstimateGenerator.new(project: project, contact: contact).generate!
   end
 
   test "includes both task-based and disbursement-based line items, and totals them together" do
     project = build_project
+    contact = contact_for(project)
     project.rates.create!(rate: 100)
     group = project.task_groups.create!(title: "Phase 1")
     group.tasks.create!(title: "Design", status: "todo", estimated_hours: 2)
     project.disbursements.create!(description: "Travel", amount: 30)
 
-    estimate = EstimateGenerator.new(project: project).generate!
+    estimate = EstimateGenerator.new(project: project, contact: contact).generate!
 
     assert_equal 2, estimate.estimate_line_items.count
     assert_equal 230, estimate.total # 2h * $100 + $30 disbursement
@@ -44,12 +52,13 @@ class EstimateGeneratorTest < ActiveSupport::TestCase
     bp = BusinessProfile.create!(user: nil, name: "Business", tax_rate: 13)
     client = bp.clients.create!(name: "Client")
     project = Project.create!(client: client, name: "Project")
+    contact = contact_for(project)
     project.rates.create!(rate: 100)
     group = project.task_groups.create!(title: "Phase 1")
     group.tasks.create!(title: "Design", status: "todo", estimated_hours: 1)
     project.disbursements.create!(description: "Travel", amount: 30)
 
-    estimate = EstimateGenerator.new(project: project).generate!
+    estimate = EstimateGenerator.new(project: project, contact: contact).generate!
 
     task_item = estimate.estimate_line_items.find { |i| i.task_id.present? }
     disbursement_item = estimate.estimate_line_items.find { |i| i.disbursement_id.present? }
@@ -62,15 +71,28 @@ class EstimateGeneratorTest < ActiveSupport::TestCase
 
   test "every generated estimate includes every disbursement, paid or unpaid, every time" do
     project = build_project
+    contact = contact_for(project)
     project.rates.create!(rate: 100)
     group = project.task_groups.create!(title: "Phase 1")
     group.tasks.create!(title: "Design", status: "todo", estimated_hours: 1)
     project.disbursements.create!(description: "Travel", amount: 30, paid: true)
 
-    first  = EstimateGenerator.new(project: project).generate!
-    second = EstimateGenerator.new(project: project).generate!
+    first  = EstimateGenerator.new(project: project, contact: contact).generate!
+    second = EstimateGenerator.new(project: project, contact: contact).generate!
 
     assert_equal 2, first.estimate_line_items.count
     assert_equal 2, second.estimate_line_items.count
+  end
+
+  test "stores whichever contact is passed in, not necessarily the primary" do
+    project = build_project
+    primary = contact_for(project)
+    secondary = project.client.contacts.create!(name: "Secondary")
+    project.disbursements.create!(description: "Filing fee", amount: 10)
+
+    estimate = EstimateGenerator.new(project: project, contact: secondary).generate!
+
+    assert_equal secondary, estimate.contact
+    assert_not_equal primary, estimate.contact
   end
 end

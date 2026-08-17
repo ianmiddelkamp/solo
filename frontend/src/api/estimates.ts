@@ -10,11 +10,15 @@ export const getEstimates = (projectId?: number) => {
 export const getEstimate = (id: number) => apiFetch<Estimate>(`/estimates/${id}`);
 export const createEstimate = (data: unknown) =>
   apiFetch<Estimate>('/estimates', { method: 'POST', body: JSON.stringify(data) });
-export const updateEstimate = (id: number, data: Partial<Estimate>) =>
+export const updateEstimate = (id: number, data: Partial<Estimate> & { contact_id?: number }) =>
   apiFetch<Estimate>(`/estimates/${id}`, { method: 'PATCH', body: JSON.stringify({ estimate: data }) });
 export const deleteEstimate = (id: number) => apiFetch(`/estimates/${id}`, { method: 'DELETE' });
 export const regenerateEstimatePdf = (id: number) => apiFetch(`/estimates/${id}/regenerate_pdf`, { method: 'POST' });
-export const sendEstimate = (id: number) => apiFetch<{ message: string }>(`/estimates/${id}/send_estimate`, { method: 'POST' });
+export const sendEstimate = (id: number, contactId?: number) =>
+  apiFetch<{ message: string }>(`/estimates/${id}/send_estimate`, {
+    method: 'POST',
+    body: JSON.stringify(contactId ? { contact_id: contactId } : {}),
+  });
 
 export async function downloadEstimatePdf(id: number, filename?: string): Promise<void> {
   const res = await fetch(`${BASE_URL}/estimates/${id}/pdf`, {

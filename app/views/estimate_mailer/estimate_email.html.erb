@@ -36,7 +36,7 @@
       </table>
 
       <div class="body">
-        <p>Hi <%= @client.contact_name.presence || @client.name %>,</p>
+        <p>Hi <%= @contact.name.presence || @client.name %>,</p>
         <% if @changes %>
           <p>Please find an <strong>updated estimate</strong> attached. Here's a summary of what changed:</p>
           <table style="margin-bottom: 8px;">

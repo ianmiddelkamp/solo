@@ -2,16 +2,18 @@ class ProjectsController < ApplicationController
   before_action :set_project, only: [:show, :update, :destroy, :archive]
 
   def index
-    projects = current_business_profile.projects.includes(:client, :rates).order(:name)
+    projects = current_business_profile.projects.includes(client: :contacts, rates: []).order(:name)
     projects = projects.where(is_archived: false) unless params[:show_archived].present?
     render json: projects.as_json(
-      include: :client,
+      include: { client: { include: { contacts: { only: %i[id name email phone phone2 primary] } } } },
       methods: :current_rate
     )
   end
 
   def show
-    render json: @project.as_json(include: :client)
+    render json: @project.as_json(
+      include: { client: { include: { contacts: { only: %i[id name email phone phone2 primary] } } } }
+    )
   end
 
   def create

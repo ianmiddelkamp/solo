@@ -173,12 +173,20 @@ PATCH  /business_profile
 ### Clients
 ```
 GET    /clients
-POST   /clients
+POST   /clients                          (also creates the client's required primary contact)
 GET    /clients/:id
 PATCH  /clients/:id
 DELETE /clients/:id
 GET    /clients/:id/rate
 PATCH  /clients/:id/rate
+```
+
+### Contacts
+```
+GET    /clients/:client_id/contacts
+POST   /clients/:client_id/contacts
+PATCH  /clients/:client_id/contacts/:id
+DELETE /clients/:client_id/contacts/:id
 ```
 
 ### Projects
@@ -291,6 +299,24 @@ Charge codes allow billing for work not tied to a project (consultations, traini
 - Project entries: project rate → client rate → $0
 - Charge code entries: charge code rate → client rate → $0
 
+### Contacts
+
+Each client has one or more `Contact`s (name, email, phone, phone2) instead of a single flat set
+of contact fields on the client itself. Exactly one contact per client is `primary`, enforced both
+in the model (setting a new primary unsets the old one) and by a partial unique index. Creating a
+client requires creating its primary contact in the same request. A contact can be deleted only if
+the client has more than one contact remaining and the one being deleted isn't primary — to delete
+a primary contact, make a different one primary first.
+
+Contacts can also carry freeform `Role` tags (e.g. "Billing", "Owner"), scoped per client — two
+different clients can each have their own role of the same name; they're never shared.
+
+Estimates and invoices each store which contact they're for (`contact_id`, defaults to the
+client's primary at creation, editable afterward — editing it automatically regenerates the
+attached PDF so the document never goes stale relative to what's stored). Sending either document
+accepts an optional one-off `contact_id` override for that particular send only, without changing
+the document's stored contact.
+
 ### Task Management
 
 Projects have task groups, and task groups have tasks. Tasks have a status (`todo`, `in_progress`, `done`), a position for drag-to-reorder, and optional time estimates. Tasks can be linked to timer sessions and time entries.
@@ -310,7 +336,9 @@ Files up to 20MB can be attached to projects. Stored via Active Storage. In prod
 
 ### Email Delivery
 
-Invoices and estimates are emailed via Action Mailer. In development, emails are captured by letter_opener_web at:
+Invoices and estimates are emailed via Action Mailer, to the document's resolved contact (its
+stored contact by default, or a one-off `contact_id` override passed to the send endpoint). In
+development, emails are captured by letter_opener_web at:
 
 ```
 http://localhost:3000/letter_opener
@@ -339,8 +367,8 @@ The React SPA lives in [`frontend/`](frontend/) and is served by the Docker stac
 |-------|------|-------------|
 | `/` | — | Redirects to `/clients` |
 | `/clients` | ClientList | View all clients |
-| `/clients/new` | ClientForm | Create a new client |
-| `/clients/:id/edit` | ClientForm | Edit an existing client |
+| `/clients/new` | ClientForm | Create a new client with its required primary contact |
+| `/clients/:id/edit` | ClientForm | Edit an existing client; manage its contacts (add/edit/make-primary/delete, role tags) |
 | `/projects` | ProjectList | View all projects |
 | `/projects/new` | ProjectForm | Create a new project |
 | `/projects/:id/edit` | ProjectForm | Edit project, manage task board (with SOW import), manage attachments |
@@ -415,16 +443,18 @@ Select a project and optional task before starting. Starting the timer marks the
 
 | Model | Key Fields |
 |-------|-----------|
-| `Client` | name, contact_name, email1/2, phone1/2, address, sales_terms |
+| `Client` | name, address, sales_terms |
+| `Contact` | name, email, phone, phone2, primary, client_id |
+| `Role` | name, client_id |
 | `Project` | name, client_id |
 | `TaskGroup` | title, position, project_id |
 | `Task` | title, status, estimated_hours, position, task_group_id |
 | `TimeEntry` | date, hours, description, project_id (optional), charge_code_id (optional), client_id (optional), task_id |
 | `ChargeCode` | code, description, rate (optional), user_id |
 | `TimerSession` | started_at, stopped_at, project_id, task_id |
-| `Invoice` | status, total, start_date, end_date, client_id |
+| `Invoice` | status, total, start_date, end_date, client_id, contact_id |
 | `InvoiceLineItem` | hours, rate, amount, tax_rate, description, invoice_id, time_entry_id |
-| `Estimate` | status, total, project_id |
+| `Estimate` | status, total, project_id, contact_id |
 | `EstimateLineItem` | hours, rate, amount, tax_rate, description, estimate_id, task_id |
 | `Rate` | rate, client_id (optional), project_id (optional) |
 | `BusinessProfile` | name, email, phone, address, hst_number, tax_rate, primary_color |

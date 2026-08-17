@@ -1,26 +1,27 @@
 class InvoiceMailer < ApplicationMailer
-  def invoice_email(invoice)
-    set_up(invoice)
+  def invoice_email(invoice, contact = nil)
+    set_up(invoice, contact)
 
     deliver_mail(
-      to:      @client.email1,
+      to:      @contact.email,
       subject: "Invoice #{invoice.number} from #{@business.name.presence || 'us'}"
     )
   end
 
-  def receipt_email(invoice)
-    set_up(invoice)
+  def receipt_email(invoice, contact = nil)
+    set_up(invoice, contact)
     deliver_mail(
-      to:      @client.email1,
+      to:      @contact.email,
       subject: "Payment Received for invoice #{invoice.number}"
     )
   end
 
   private
 
-  def set_up(invoice)
+  def set_up(invoice, contact = nil)
     @invoice  = invoice
     @client   = invoice.client
+    @contact  = contact || invoice.contact
     @business = @client.business_profile
 
     attachments["#{@invoice.number}.pdf"] = {

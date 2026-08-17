@@ -9,6 +9,7 @@ export default function EstimateForm() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState('');
+  const [contactId, setContactId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
@@ -22,12 +23,21 @@ export default function EstimateForm() {
       .catch((e) => setError(e.message));
   }, []);
 
+  const selectedProject = projects.find((p) => String(p.id) === projectId);
+  const contacts = selectedProject?.client?.contacts ?? [];
+
+  useEffect(() => {
+    const primary = contacts.find((c) => c.primary);
+    setContactId(primary ? String(primary.id) : contacts[0] ? String(contacts[0].id) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setGenerating(true);
     setError(null);
     try {
-      const estimate = await createEstimate({ project_id: projectId });
+      const estimate = await createEstimate({ project_id: projectId, contact_id: contactId || undefined });
       if (estimate) navigate(`/estimates/${estimate.id}`);
     } catch (err) {
       setError((err as Error).message);
@@ -56,6 +66,21 @@ export default function EstimateForm() {
             <option value="">Select a project…</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
+          <select
+            value={contactId}
+            onChange={(e) => setContactId(e.target.value)}
+            disabled={contacts.length === 0}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
+          >
+            {contacts.length === 0 && <option value="">No contacts on this client</option>}
+            {contacts.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}{c.primary ? ' (Primary)' : ''}</option>
             ))}
           </select>
         </div>

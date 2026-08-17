@@ -7,6 +7,7 @@ import { confirm } from '../../services/dialog';
 import type { Invoice, BusinessProfile, PaymentEntry } from '../../types';
 import { DateTime } from 'luxon';
 import PaymentDialog from './dialogs/PaymentDialog';
+import ContactPickerDialog from '../../components/ContactPickerDialog';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -27,6 +28,9 @@ export default function InvoiceDetail() {
   const [sending, setSending] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<PaymentEntry | null>()
+  const [editingContact, setEditingContact] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [sendDialogAction, setSendDialogAction] = useState<'invoice' | 'receipt' | null>(null);
 
   useEffect(() => {
     Promise.all([getInvoice(id), getBusinessProfile()])
@@ -35,12 +39,24 @@ export default function InvoiceDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  async function handleSendInvoice() {
-    if (!invoice) return;
-    if (!await confirm(`Send invoice to ${invoice.client?.email1}?`, { title: 'Send Invoice', confirmLabel: 'Send', danger: false })) return;
+  async function handleContactChange(contactId: string) {
+    if (!invoice || !contactId) { setEditingContact(false); return; }
+    setSavingContact(true);
+    try {
+      const updated = await updateInvoice(invoice.id, { contact_id: Number(contactId) });
+      if (updated) setInvoice(updated);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setSavingContact(false);
+      setEditingContact(false);
+    }
+  }
+
+  async function sendToContact(action: 'invoice' | 'receipt', contactId?: number) {
     setSending(true);
     try {
-      const res = await sendInvoice(id);
+      const res = action === 'invoice' ? await sendInvoice(id, contactId) : await sendReceipt(id, contactId);
       if (res) alert(res.message);
     } catch (e) {
       alert((e as Error).message);
@@ -48,6 +64,26 @@ export default function InvoiceDetail() {
       setSending(false);
     }
   }
+
+  async function startSend(action: 'invoice' | 'receipt') {
+    if (!invoice) return;
+
+    // Only one contact to choose from — nothing to pick, so skip the picker and go straight to
+    // the usual confirmation instead of showing a dialog with no real choice in it.
+    if (contacts.length <= 1) {
+      const contact = contacts[0] ?? invoice.contact;
+      const label = action === 'invoice' ? 'Send Invoice' : 'Send Receipt';
+      const verb = action === 'invoice' ? 'Send invoice to' : 'Send paid receipt to';
+      if (!await confirm(`${verb} ${contact?.email || contact?.name}?`, { title: label, confirmLabel: 'Send', danger: false })) return;
+      await sendToContact(action);
+      return;
+    }
+
+    setSendDialogAction(action);
+  }
+
+  const handleSendInvoice = () => startSend('invoice');
+  const handleSendReceipt = () => startSend('receipt');
 
   async function handleDownloadPdf() {
     if (!invoice) return;
@@ -106,20 +142,6 @@ export default function InvoiceDetail() {
     }
   }
 
-  async function handleSendReceipt() {
-    if (!invoice) return;
-    if (!await confirm(`Send paid receipt to ${invoice.client?.email1}?`, { title: 'Send Receipt', confirmLabel: 'Send', danger: false })) return;
-    setSending(true);
-    try {
-      const res = await sendReceipt(id);
-      if (res) alert(res.message);
-    } catch (e) {
-      alert((e as Error).message);
-    } finally {
-      setSending(false);
-    }
-  }
-
 
   async function handleMarkAsSent() {
     if (!invoice) return;
@@ -135,6 +157,7 @@ export default function InvoiceDetail() {
   if (error) return <div className="p-8 text-red-600">{error}</div>;
   if (!invoice) return null;
 
+  const contacts = invoice.client?.contacts ?? [];
   const brand = business?.primary_color || '#4338ca';
 
   const bizAddress = [business?.address1, business?.city, business?.state, business?.postcode].filter(Boolean).join(', ');
@@ -262,9 +285,36 @@ export default function InvoiceDetail() {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Bill To</p>
             <p className="text-sm font-semibold text-gray-900">{invoice.client?.name}</p>
             <div className="text-xs text-gray-500 leading-relaxed mt-1">
-              {invoice.client?.contact_name && <div>{invoice.client.contact_name}</div>}
-              {invoice.client?.email1 && <div>{invoice.client.email1}</div>}
-              {invoice.client?.phone1 && <div>{invoice.client.phone1}</div>}
+              {editingContact ? (
+                <select
+                  autoFocus
+                  defaultValue={invoice.contact?.id}
+                  disabled={savingContact}
+                  onChange={(e) => handleContactChange(e.target.value)}
+                  onBlur={() => setEditingContact(false)}
+                  className="text-xs border-b border-indigo-400 outline-none bg-transparent text-gray-700"
+                >
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              ) : (
+                invoice.contact?.name && (
+                  <div className="flex items-center gap-1.5">
+                    <span>{invoice.contact.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingContact(true)}
+                      title="Change who this invoice is billed to"
+                      className="text-indigo-600 hover:text-indigo-800 font-medium underline underline-offset-2"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )
+              )}
+              {invoice.contact?.email && <div>{invoice.contact.email}</div>}
+              {invoice.contact?.phone && <div>{invoice.contact.phone}</div>}
               {clientAddress && <div>{clientAddress}</div>}
             </div>
           </div>
@@ -351,8 +401,16 @@ export default function InvoiceDetail() {
           onCancel={() => setShowPaymentDialog(false)}
         />
       )}
+
+      {sendDialogAction && (
+        <ContactPickerDialog
+          title={sendDialogAction === 'invoice' ? `Send invoice ${invoice.number} to…` : `Send receipt for ${invoice.number} to…`}
+          contacts={contacts}
+          defaultContactId={invoice.contact?.id}
+          onSubmit={(contactId) => { const action = sendDialogAction; setSendDialogAction(null); sendToContact(action, contactId); }}
+          onCancel={() => setSendDialogAction(null)}
+        />
+      )}
     </div>
-
-
   );
 }

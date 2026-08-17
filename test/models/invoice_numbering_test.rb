@@ -9,12 +9,16 @@ class InvoiceNumberingTest < ActiveSupport::TestCase
     Client.create!(business_profile: business_profile, name: "Client #{business_profile.id}")
   end
 
+  def contact_for(client)
+    client.contacts.create!(name: "Contact for #{client.name}", primary: true)
+  end
+
   test "two different businesses' invoices both start at 0001" do
     client_a = client_for(business_profile("Business A"))
     client_b = client_for(business_profile("Business B"))
 
-    invoice_a = Invoice.create!(client: client_a, status: "pending")
-    invoice_b = Invoice.create!(client: client_b, status: "pending")
+    invoice_a = Invoice.create!(client: client_a, contact: contact_for(client_a), status: "pending")
+    invoice_b = Invoice.create!(client: client_b, contact: contact_for(client_b), status: "pending")
 
     assert_equal "INV-0001", invoice_a.number
     assert_equal "INV-0001", invoice_b.number
@@ -22,9 +26,10 @@ class InvoiceNumberingTest < ActiveSupport::TestCase
 
   test "a second invoice for the same business increments" do
     client = client_for(business_profile("Business A"))
+    contact = contact_for(client)
 
-    first = Invoice.create!(client: client, status: "pending")
-    second = Invoice.create!(client: client, status: "pending")
+    first = Invoice.create!(client: client, contact: contact, status: "pending")
+    second = Invoice.create!(client: client, contact: contact, status: "pending")
 
     assert_equal "INV-0001", first.number
     assert_equal "INV-0002", second.number
@@ -32,12 +37,13 @@ class InvoiceNumberingTest < ActiveSupport::TestCase
 
   test "deleting an invoice and creating another doesn't reuse or collide" do
     client = client_for(business_profile("Business A"))
+    contact = contact_for(client)
 
-    first = Invoice.create!(client: client, status: "pending")
-    second = Invoice.create!(client: client, status: "pending")
+    first = Invoice.create!(client: client, contact: contact, status: "pending")
+    second = Invoice.create!(client: client, contact: contact, status: "pending")
     first.destroy!
 
-    third = Invoice.create!(client: client, status: "pending")
+    third = Invoice.create!(client: client, contact: contact, status: "pending")
 
     assert_equal "INV-0003", third.number
     assert_not_equal second.sequence_number, third.sequence_number
@@ -46,12 +52,13 @@ class InvoiceNumberingTest < ActiveSupport::TestCase
   test "self-healing: assignment doesn't collide even if the stored counter is stale" do
     profile = business_profile("Business A")
     client = client_for(profile)
+    contact = contact_for(client)
 
-    high_water_mark = Invoice.create!(client: client, status: "pending")
+    high_water_mark = Invoice.create!(client: client, contact: contact, status: "pending")
     high_water_mark.update_column(:sequence_number, 10)
     profile.update!(next_invoice_number: 1)
 
-    next_invoice = Invoice.create!(client: client, status: "pending")
+    next_invoice = Invoice.create!(client: client, contact: contact, status: "pending")
 
     assert_equal "INV-0011", next_invoice.number
   end

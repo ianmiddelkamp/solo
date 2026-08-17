@@ -33,6 +33,7 @@ export default function InvoiceForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [contactId, setContactId] = useState('');
 
   useEffect(() => {
     if (preloaded) {
@@ -91,6 +92,7 @@ export default function InvoiceForm() {
     try {
       const invoice = await createInvoice({
         client_id: form.client_id,
+        contact_id: contactId || undefined,
         start_date: form.start_date,
         end_date: form.end_date,
         time_entry_ids: [...selected],
@@ -103,7 +105,15 @@ export default function InvoiceForm() {
     }
   }
 
-  const clientName = clients.find((c) => String(c.id) === form.client_id)?.name;
+  const selectedClient = clients.find((c) => String(c.id) === form.client_id);
+  const clientName = selectedClient?.name;
+  const contacts = selectedClient?.contacts ?? [];
+
+  useEffect(() => {
+    const primary = contacts.find((c) => c.primary);
+    setContactId(primary ? String(primary.id) : contacts[0] ? String(contacts[0].id) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.client_id, clients.length]);
 
   const groups = entries.reduce<Record<string, EntryGroup>>((acc, entry) => {
     const key = entry.project ? `project-${entry.project.id}` : `cc-${entry.charge_code?.id}`;
@@ -134,10 +144,23 @@ export default function InvoiceForm() {
               <h2 className="text-base font-semibold text-gray-900">{clientName}</h2>
               <p className="text-sm text-gray-400">{form.start_date} → {form.end_date}</p>
             </div>
-            <div className="flex items-center gap-3 text-sm">
-              <button onClick={selectAll} className="text-indigo-600 hover:text-indigo-800">Select all</button>
-              <span className="text-gray-300">|</span>
-              <button onClick={deselectAll} className="text-indigo-600 hover:text-indigo-800">Deselect all</button>
+            <div className="flex items-center gap-4">
+              {contacts.length > 0 && (
+                <select
+                  value={contactId}
+                  onChange={(e) => setContactId(e.target.value)}
+                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}{c.primary ? ' (Primary)' : ''}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex items-center gap-3 text-sm">
+                <button onClick={selectAll} className="text-indigo-600 hover:text-indigo-800">Select all</button>
+                <span className="text-gray-300">|</span>
+                <button onClick={deselectAll} className="text-indigo-600 hover:text-indigo-800">Deselect all</button>
+              </div>
             </div>
           </div>
 

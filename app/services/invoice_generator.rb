@@ -1,6 +1,7 @@
 class InvoiceGenerator
-  def initialize(client:, start_date: nil, end_date: nil, time_entry_ids: nil)
+  def initialize(client:, contact:, start_date: nil, end_date: nil, time_entry_ids: nil)
     @client          = client
+    @contact         = contact
     @start_date      = start_date
     @end_date        = end_date
     @time_entry_ids  = time_entry_ids
@@ -14,6 +15,7 @@ class InvoiceGenerator
     ActiveRecord::Base.transaction do
       invoice = Invoice.create!(
         client: @client,
+        contact: @contact,
         status: "pending",
         start_date: @start_date,
         end_date: @end_date
