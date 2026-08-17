@@ -4,6 +4,7 @@ import { getEstimate, updateEstimate, downloadEstimatePdf, regenerateEstimatePdf
 import { getBusinessProfile } from '../../api/businessProfile';
 import { formatDate } from '../../utils/dates';
 import { confirm } from '../../services/dialog';
+import ContactPickerDialog from '../../components/ContactPickerDialog';
 import type { Estimate, BusinessProfile } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -30,6 +31,9 @@ export default function EstimateDetail() {
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [sending, setSending] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
 
   useEffect(() => {
     Promise.all([getEstimate(id), getBusinessProfile()])
@@ -38,19 +42,45 @@ export default function EstimateDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  async function handleSend() {
-    if (!estimate) return;
-    const email = estimate.project?.client?.email1;
-    if (!await confirm(`Send estimate to ${email}?`, { title: 'Send Estimate', confirmLabel: 'Send', danger: false })) return;
+  async function handleContactChange(contactId: string) {
+    if (!estimate || !contactId) { setEditingContact(false); return; }
+    setSavingContact(true);
+    try {
+      const updated = await updateEstimate(estimate.id, { contact_id: Number(contactId) });
+      if (updated) setEstimate(updated);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setSavingContact(false);
+      setEditingContact(false);
+    }
+  }
+
+  async function sendToContact(contactId?: number) {
     setSending(true);
     try {
-      const res = await sendEstimate(id);
+      const res = await sendEstimate(id, contactId);
       if (res) alert(res.message);
     } catch (e) {
       alert((e as Error).message);
     } finally {
       setSending(false);
     }
+  }
+
+  async function handleSend() {
+    if (!estimate) return;
+
+    // Only one contact to choose from — nothing to pick, so skip the picker and go straight to
+    // the usual confirmation instead of showing a dialog with no real choice in it.
+    if (contacts.length <= 1) {
+      const contact = contacts[0] ?? estimate.contact;
+      if (!await confirm(`Send estimate to ${contact?.email || contact?.name}?`, { title: 'Send Estimate', confirmLabel: 'Send', danger: false })) return;
+      await sendToContact();
+      return;
+    }
+
+    setShowSendDialog(true);
   }
 
   async function handleDownloadPdf() {
@@ -105,6 +135,7 @@ export default function EstimateDetail() {
   const brand = business?.primary_color || '#4338ca';
   const transition = STATUS_TRANSITIONS[estimate.status];
   const client = estimate.project?.client;
+  const contacts = client?.contacts ?? [];
 
   const bizAddress = [business?.address1, business?.city, business?.state, business?.postcode].filter(Boolean).join(', ');
   const clientAddress = [client?.address1, client?.city, client?.state, client?.postcode].filter(Boolean).join(', ');
@@ -200,9 +231,36 @@ export default function EstimateDetail() {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Prepared For</p>
             <p className="text-sm font-semibold text-gray-900">{client?.name}</p>
             <div className="text-xs text-gray-500 leading-relaxed mt-1">
-              {client?.contact_name && <div>{client.contact_name}</div>}
-              {client?.email1 && <div>{client.email1}</div>}
-              {client?.phone1 && <div>{client.phone1}</div>}
+              {editingContact ? (
+                <select
+                  autoFocus
+                  defaultValue={estimate.contact?.id}
+                  disabled={savingContact}
+                  onChange={(e) => handleContactChange(e.target.value)}
+                  onBlur={() => setEditingContact(false)}
+                  className="text-xs border-b border-indigo-400 outline-none bg-transparent text-gray-700"
+                >
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              ) : (
+                estimate.contact?.name && (
+                  <div className="flex items-center gap-1.5">
+                    <span>{estimate.contact.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingContact(true)}
+                      title="Change who this estimate is prepared for"
+                      className="text-indigo-600 hover:text-indigo-800 font-medium underline underline-offset-2"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )
+              )}
+              {estimate.contact?.email && <div>{estimate.contact.email}</div>}
+              {estimate.contact?.phone && <div>{estimate.contact.phone}</div>}
               {clientAddress && <div>{clientAddress}</div>}
             </div>
           </div>
@@ -342,6 +400,16 @@ export default function EstimateDetail() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showSendDialog && (
+        <ContactPickerDialog
+          title={`Send estimate ${estimate.number} to…`}
+          contacts={contacts}
+          defaultContactId={estimate.contact?.id}
+          onSubmit={(contactId) => { setShowSendDialog(false); sendToContact(contactId); }}
+          onCancel={() => setShowSendDialog(false)}
+        />
       )}
     </div>
   );

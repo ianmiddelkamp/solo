@@ -5,6 +5,7 @@ class EstimatePdfGenerator
     @estimate = estimate
     @project  = estimate.project
     @client   = @project.client
+    @contact  = estimate.contact
     @business = @client.business_profile
     @items    = estimate.estimate_line_items
                         .includes(task: [:task_group, :time_entries], disbursement: [])
@@ -19,6 +20,7 @@ class EstimatePdfGenerator
         estimate: @estimate,
         project: @project,
         client: @client,
+        contact: @contact,
         business: @business,
         items: @items,
         logo_data_uri: @business.logo_data_uri

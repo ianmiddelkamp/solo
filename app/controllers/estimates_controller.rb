@@ -16,8 +16,9 @@ class EstimatesController < ApplicationController
 
   def create
     project = current_business_profile.projects.find(params[:project_id])
+    contact = resolve_contact(project.client, params[:contact_id])
 
-    estimate = EstimateGenerator.new(project: project).generate!
+    estimate = EstimateGenerator.new(project: project, contact: contact).generate!
 
     if estimate.nil?
       render json: { error: "No tasks with estimated hours found for this project." },
@@ -25,18 +26,28 @@ class EstimatesController < ApplicationController
       return
     end
 
-    pdf_data = EstimatePdfGenerator.new(estimate).generate
-    estimate.pdf.attach(
-      io: StringIO.new(pdf_data),
-      filename: "#{estimate.number}.pdf",
-      content_type: "application/pdf"
-    )
+    regenerate_estimate_pdf!(estimate)
 
     render json: estimate_json(estimate), status: :created
   end
 
   def update
+    attrs = estimate_params.to_h
+    contact_changing = attrs.key?("contact_id") && attrs["contact_id"].to_i != @estimate.contact_id
+    if attrs.key?("contact_id")
+      contact = current_business_profile.contacts.find_by(id: attrs["contact_id"])
+      unless contact && contact.client_id == @estimate.project.client_id
+        render json: { errors: ["Contact must belong to this estimate's client."] }, status: :unprocessable_entity
+        return
+      end
+    end
+
     if @estimate.update(estimate_params)
+      # The "Prepared For" contact is shown as part of the document preview even though it's
+      # only metadata on the record — regenerating here means what's displayed always matches
+      # what's actually stored/attached, so there's never a stale PDF with the old contact's
+      # info still printed on it after an edit.
+      regenerate_estimate_pdf!(@estimate) if contact_changing && @estimate.pdf.attached?
       render json: estimate_json(@estimate)
     else
       render json: { errors: @estimate.errors.full_messages }, status: :unprocessable_entity
@@ -49,8 +60,19 @@ class EstimatesController < ApplicationController
   end
 
   def send_estimate
-    unless @estimate.project.client.email1.present?
-      render json: { error: "Client has no email address on file." }, status: :unprocessable_entity
+    contact = if params[:contact_id].present?
+      current_business_profile.contacts.find_by(id: params[:contact_id])
+    else
+      @estimate.contact
+    end
+
+    unless contact && contact.client_id == @estimate.project.client_id
+      render json: { error: "Contact must belong to this estimate's client." }, status: :unprocessable_entity
+      return
+    end
+
+    unless contact.email.present?
+      render json: { error: "Contact has no email address on file." }, status: :unprocessable_entity
       return
     end
 
@@ -60,7 +82,7 @@ class EstimatesController < ApplicationController
     end
 
     changes = diff_since_last_sent(@estimate)
-    EstimateMailer.estimate_email(@estimate, changes).deliver_now
+    EstimateMailer.estimate_email(@estimate, changes, contact).deliver_now
 
     snapshot_items = @estimate.estimate_line_items.includes(task: :time_entries)
     @estimate.update!(
@@ -79,16 +101,11 @@ class EstimatesController < ApplicationController
                        snapshot_items.sum { |i| (i.task&.status == "done" ? i.task.actual_hours.to_f * i.rate : i.amount) * i.tax_rate / 100 }
     )
 
-    render json: { message: "Estimate sent to #{@estimate.project.client.email1}." }
+    render json: { message: "Estimate sent to #{contact.email}." }
   end
 
   def regenerate_pdf
-    pdf_data = EstimatePdfGenerator.new(@estimate).generate
-    @estimate.pdf.attach(
-      io: StringIO.new(pdf_data),
-      filename: "#{@estimate.number}.pdf",
-      content_type: "application/pdf"
-    )
+    regenerate_estimate_pdf!(@estimate)
     render json: { message: "PDF regenerated successfully" }
   end
 
@@ -108,8 +125,25 @@ class EstimatesController < ApplicationController
 
   def set_estimate
     @estimate = current_business_profile.estimates
-      .includes(estimate_line_items: [{ task: :time_entries }, :disbursement])
+      .includes(estimate_line_items: [{ task: :time_entries }, :disbursement], contact: [])
       .find(params[:id])
+  end
+
+  def regenerate_estimate_pdf!(estimate)
+    pdf_data = EstimatePdfGenerator.new(estimate).generate
+    estimate.pdf.attach(
+      io: StringIO.new(pdf_data),
+      filename: "#{estimate.number}.pdf",
+      content_type: "application/pdf"
+    )
+  end
+
+  # Defaults to the client's primary contact when none is given; raises RecordNotFound (rendered
+  # as a 404 by ApplicationController, matching every other tenant-scoped .find in this app) if a
+  # contact_id is given but doesn't belong to this client.
+  def resolve_contact(client, contact_id)
+    return client.primary_contact if contact_id.blank?
+    current_business_profile.contacts.where(client: client).find(contact_id)
   end
 
   def diff_since_last_sent(estimate)
@@ -181,7 +215,7 @@ class EstimatesController < ApplicationController
   end
 
   def estimate_params
-    params.require(:estimate).permit(:status)
+    params.require(:estimate).permit(:status, :contact_id)
   end
 
   def estimate_json(estimate)
@@ -191,8 +225,9 @@ class EstimatesController < ApplicationController
       include: {
         project: {
           only: %i[id name],
-          include: { client: {} }
+          include: { client: { include: { contacts: { only: %i[id name email phone phone2 primary] } } } }
         },
+        contact: { only: %i[id name email phone phone2 primary] },
         estimate_line_items: {
           include: {
             task: { only: %i[id title status], methods: %i[actual_hours] },

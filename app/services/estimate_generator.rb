@@ -1,6 +1,7 @@
 class EstimateGenerator
-  def initialize(project:)
+  def initialize(project:, contact:)
     @project  = project
+    @contact  = contact
     @tax_rate = @project.client.business_profile.tax_rate || 0
   end
 
@@ -12,6 +13,7 @@ class EstimateGenerator
     ActiveRecord::Base.transaction do
       estimate = Estimate.create!(
         project: @project,
+        contact: @contact,
         status: "draft"
       )
 
