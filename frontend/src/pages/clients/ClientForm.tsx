@@ -3,16 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getClient, createClient, updateClient } from '../../api/clients';
 import { getClientRate, setClientRate } from '../../api/rates';
 import PageHeader from '../../components/PageHeader';
+import ClientContacts from '../../components/ClientContacts';
 
 const TERMS_OPTIONS = ['NET 15', 'NET 30', 'NET 45', 'NET 60', 'Due on Receipt'];
 
 const EMPTY = {
   name: '',
-  contact_name: '',
-  email1: '',
-  email2: '',
-  phone1: '',
-  phone2: '',
   address1: '',
   address2: '',
   city: '',
@@ -22,18 +18,21 @@ const EMPTY = {
   sales_terms: 'NET 15',
 };
 
+const EMPTY_CONTACT = { name: '', email: '', phone: '', phone2: '' };
+
 type FormState = typeof EMPTY;
 
 interface FieldProps {
   label: string;
-  name: keyof FormState;
+  name: keyof FormState | keyof typeof EMPTY_CONTACT;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: string;
   placeholder?: string;
+  required?: boolean;
 }
 
-function Field({ label, name, value, onChange, type = 'text', placeholder }: FieldProps) {
+function Field({ label, name, value, onChange, type = 'text', placeholder, required }: FieldProps) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -43,6 +42,7 @@ function Field({ label, name, value, onChange, type = 'text', placeholder }: Fie
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        required={required}
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
       />
     </div>
@@ -55,6 +55,7 @@ export default function ClientForm() {
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [primaryContact, setPrimaryContact] = useState(EMPTY_CONTACT);
   const [rate, setRateValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -66,11 +67,6 @@ export default function ClientForm() {
           if (!c) return;
           setForm({
             name: c.name ?? '',
-            contact_name: c.contact_name ?? '',
-            email1: c.email1 ?? '',
-            email2: c.email2 ?? '',
-            phone1: c.phone1 ?? '',
-            phone2: c.phone2 ?? '',
             address1: c.address1 ?? '',
             address2: c.address2 ?? '',
             city: c.city ?? '',
@@ -92,6 +88,10 @@ export default function ClientForm() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
+  function handleContactChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setPrimaryContact((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -102,7 +102,7 @@ export default function ClientForm() {
         await updateClient(Number(id), form);
         clientId = Number(id);
       } else {
-        const created = await createClient(form);
+        const created = await createClient(form, primaryContact);
         if (!created) return;
         clientId = created.id;
       }
@@ -128,7 +128,7 @@ export default function ClientForm() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
-        <Field label="Business Name *" name="name" value={form.name} onChange={handleChange} />
+        <Field label="Business Name *" name="name" value={form.name} onChange={handleChange} required />
 
         <div>
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Billing</h3>
@@ -160,17 +160,21 @@ export default function ClientForm() {
           </div>
         </div>
 
-        <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Contact</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Contact Name" name="contact_name" value={form.contact_name} onChange={handleChange} />
-            <div />
-            <Field label="Email" name="email1" value={form.email1} onChange={handleChange} type="email" />
-            <Field label="Email 2" name="email2" value={form.email2} onChange={handleChange} type="email" />
-            <Field label="Phone" name="phone1" value={form.phone1} onChange={handleChange} type="tel" />
-            <Field label="Phone 2" name="phone2" value={form.phone2} onChange={handleChange} type="tel" />
+        {!isEdit && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Primary Contact</h3>
+            <p className="text-xs text-gray-400 mb-3">
+              Every client needs at least one contact. You can add more after creating the client.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Name *" name="name" value={primaryContact.name} onChange={handleContactChange} required />
+              <div />
+              <Field label="Email" name="email" value={primaryContact.email} onChange={handleContactChange} type="email" />
+              <Field label="Phone" name="phone" value={primaryContact.phone} onChange={handleContactChange} type="tel" />
+              <Field label="Phone 2" name="phone2" value={primaryContact.phone2} onChange={handleContactChange} type="tel" />
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Address</h3>
@@ -203,6 +207,12 @@ export default function ClientForm() {
           </button>
         </div>
       </form>
+
+      {isEdit && id && (
+        <div className="bg-white rounded-lg shadow p-6 mt-6">
+          <ClientContacts clientId={Number(id)} />
+        </div>
+      )}
     </div>
   );
 }

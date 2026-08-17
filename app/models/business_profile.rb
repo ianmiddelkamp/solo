@@ -14,6 +14,7 @@ class BusinessProfile < ApplicationRecord
   has_many :invoices, through: :clients
   has_many :estimates, through: :projects
   has_many :task_groups, through: :projects
+  has_many :contacts, through: :clients
 
   def self.for_user(user)
     find_or_create_by!(user: user)

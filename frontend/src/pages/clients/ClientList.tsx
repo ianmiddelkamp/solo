@@ -56,9 +56,9 @@ export default function ClientList() {
               {clients.map((client) => (
                 <tr key={client.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{client.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{client.contact_name || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{client.email1 || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{client.phone1 || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{client.primary_contact?.name || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{client.primary_contact?.email || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{client.primary_contact?.phone || '—'}</td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {client.current_rate != null ? `$${parseFloat(String(client.current_rate)).toFixed(2)}/hr` : '—'}
                   </td>
