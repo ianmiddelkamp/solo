@@ -57,7 +57,13 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     },
   });
 
-  if (res.status === 401) {
+  // Only auto-clear and redirect when a token was actually sent and got rejected — i.e. a
+  // previously-valid session going stale mid-use. A request made with no token (a login attempt,
+  // a public token-consumption endpoint) can also legitimately 401 for reasons that have nothing
+  // to do with an expired session (wrong password, expired reset link) — those should just fall
+  // through to the normal error handling below so the caller's own catch block sees the message,
+  // instead of hard-navigating away and silently discarding whatever the user had typed.
+  if (res.status === 401 && token) {
     clearToken();
     window.location.href = '/login';
     return null;
