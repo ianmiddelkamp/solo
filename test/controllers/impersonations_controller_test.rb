@@ -30,4 +30,42 @@ class ImpersonationsControllerTest < ActionDispatch::IntegrationTest
     get "/users", headers: { "Authorization" => "Bearer #{body['token']}" }
     assert_response :success
   end
+
+  test "GET requests are allowed while impersonating" do
+    get "/clients", headers: impersonation_headers(users(:member), users(:admin))
+    assert_response :success
+  end
+
+  test "POST requests are blocked while impersonating" do
+    post "/clients",
+      params: { client: { name: "Should not be created" } }.to_json,
+      headers: impersonation_headers(users(:member), users(:admin)).merge("Content-Type" => "application/json")
+    assert_response :forbidden
+  end
+
+  test "PATCH requests are blocked while impersonating" do
+    client = BusinessProfile.for_user(users(:member)).clients.create!(name: "Existing Client")
+
+    patch "/clients/#{client.id}",
+      params: { client: { name: "Renamed" } }.to_json,
+      headers: impersonation_headers(users(:member), users(:admin)).merge("Content-Type" => "application/json")
+    assert_response :forbidden
+    assert_equal "Existing Client", client.reload.name
+  end
+
+  test "DELETE requests are blocked while impersonating" do
+    client = BusinessProfile.for_user(users(:member)).clients.create!(name: "Existing Client")
+
+    assert_no_difference "Client.count" do
+      delete "/clients/#{client.id}", headers: impersonation_headers(users(:member), users(:admin))
+    end
+    assert_response :forbidden
+  end
+
+  test "exiting impersonation (a DELETE) is still allowed" do
+    ImpersonationSession.create!(impersonator: users(:admin), user: users(:member), started_at: Time.current)
+
+    delete "/impersonation", headers: impersonation_headers(users(:member), users(:admin))
+    assert_response :success
+  end
 end

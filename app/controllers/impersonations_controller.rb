@@ -1,4 +1,8 @@
 class ImpersonationsController < ApplicationController
+  # The exit action is itself a DELETE — without this, an admin could start impersonating and
+  # never be able to get back out.
+  skip_before_action :block_mutations_while_impersonating, only: :destroy
+
   def destroy
     unless @impersonator
       render json: { error: "Not currently impersonating." }, status: :unprocessable_entity
