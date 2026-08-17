@@ -9,8 +9,23 @@ Rails.application.routes.draw do
   get    "/invitations",              to: "invitations#index"
   post   "/invitations",              to: "invitations#create"
   delete "/invitations/:id",          to: "invitations#destroy"
+  post   "/invitations/:id/resend",   to: "invitations#resend"
   get    "/invitations/:token",       to: "invitations#show"
   post   "/invitations/:token/accept", to: "invitations#accept"
+
+  get    "/password_resets/:token",   to: "password_resets#show"
+  patch  "/password_resets/:token",   to: "password_resets#update"
+
+  delete "/impersonation", to: "impersonations#destroy"
+
+  resources :users, only: [:index, :show, :update] do
+    member do
+      post :archive
+      post :unarchive
+      post :send_password_reset
+      post :impersonate
+    end
+  end
 
   get    "/timer",       to: "timer_sessions#current"
   post   "/timer/start", to: "timer_sessions#start"

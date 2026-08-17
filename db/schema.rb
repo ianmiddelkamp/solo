@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_16_125912) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_17_120208) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -208,6 +208,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_16_125912) do
     t.index ["business_profile_id"], name: "index_hst_returns_on_business_profile_id"
   end
 
+  create_table "impersonation_sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "ended_at"
+    t.bigint "impersonator_id", null: false
+    t.datetime "started_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["impersonator_id"], name: "index_impersonation_sessions_on_impersonator_id"
+    t.index ["user_id"], name: "index_impersonation_sessions_on_user_id"
+  end
+
   create_table "invoice_line_items", force: :cascade do |t|
     t.decimal "amount", precision: 10, scale: 2
     t.datetime "created_at", null: false
@@ -316,17 +327,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_16_125912) do
 
   create_table "users", force: :cascade do |t|
     t.datetime "accepted_at"
+    t.datetime "archived_at"
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.datetime "invite_sent_at"
     t.string "invite_token"
     t.bigint "invited_by_id"
+    t.datetime "last_login_at"
     t.string "name", null: false
     t.string "password_digest"
+    t.datetime "reset_password_sent_at"
+    t.string "reset_password_token"
     t.string "role"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["invite_token"], name: "index_users_on_invite_token", unique: true
+    t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -343,6 +359,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_16_125912) do
   add_foreign_key "expenses", "business_profiles"
   add_foreign_key "home_office_profiles", "business_profiles"
   add_foreign_key "hst_returns", "business_profiles"
+  add_foreign_key "impersonation_sessions", "users"
+  add_foreign_key "impersonation_sessions", "users", column: "impersonator_id"
   add_foreign_key "invoice_line_items", "invoices"
   add_foreign_key "invoice_line_items", "time_entries"
   add_foreign_key "invoices", "clients"

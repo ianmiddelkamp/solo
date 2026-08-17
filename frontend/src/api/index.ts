@@ -11,6 +11,7 @@ export function setToken(token: string): void {
 export function clearToken(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('impersonating');
 }
 
 export interface CurrentUser {
@@ -33,6 +34,17 @@ export function isAdmin(): boolean {
   return getUser()?.role === 'admin';
 }
 
+// Set right after a successful impersonate/exit call — the JWT itself is what actually carries
+// impersonation server-side, this flag is purely local UI state so the banner knows to render.
+export function isImpersonating(): boolean {
+  return localStorage.getItem('impersonating') === '1';
+}
+
+export function setImpersonating(value: boolean): void {
+  if (value) localStorage.setItem('impersonating', '1');
+  else localStorage.removeItem('impersonating');
+}
+
 export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T | null> {
   const token = getToken();
 
@@ -45,7 +57,13 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     },
   });
 
-  if (res.status === 401) {
+  // Only auto-clear and redirect when a token was actually sent and got rejected — i.e. a
+  // previously-valid session going stale mid-use. A request made with no token (a login attempt,
+  // a public token-consumption endpoint) can also legitimately 401 for reasons that have nothing
+  // to do with an expired session (wrong password, expired reset link) — those should just fall
+  // through to the normal error handling below so the caller's own catch block sees the message,
+  // instead of hard-navigating away and silently discarding whatever the user had typed.
+  if (res.status === 401 && token) {
     clearToken();
     window.location.href = '/login';
     return null;

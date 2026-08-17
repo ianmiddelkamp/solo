@@ -6,11 +6,22 @@ class ApplicationMailer < ActionMailer::Base
   # Gmail credentials yet. Not raised in dev/test, where nothing is actually sent over SMTP.
   class EmailNotConfiguredError < StandardError; end
 
+  # Raised if a send is attempted while an admin is impersonating a user. In practice every
+  # mailer in this app is already triggered from a mutating controller action, and
+  # ApplicationController#block_mutations_while_impersonating blocks those before they run — this
+  # is a second, independent guard directly at the mailer layer, so a future mailer send wired to
+  # something other than a plain POST/PATCH/DELETE action is still caught.
+  class ImpersonationBlockedError < StandardError; end
+
   private
 
   # Subclasses must set @business (a BusinessProfile) before calling this instead of `mail`
   # directly, so the per-tenant Gmail credentials get used for the actual SMTP send.
   def deliver_mail(to:, subject:, **mail_options)
+    if Current.impersonating
+      raise ImpersonationBlockedError, "Email can't be sent while impersonating."
+    end
+
     if smtp_delivery? && !@business&.email_configured?
       raise EmailNotConfiguredError,
         "Email sending isn't set up for this account yet. Add a Gmail address and app password in Settings before sending."

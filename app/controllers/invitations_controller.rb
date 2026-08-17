@@ -1,6 +1,6 @@
 class InvitationsController < ApplicationController
   skip_before_action :authenticate_user!, only: [:show, :accept]
-  before_action :require_admin!, only: [:index, :create, :destroy]
+  before_action :require_admin!, only: [:index, :create, :destroy, :resend]
   before_action :set_invited_user, only: [:show, :accept]
 
   def index
@@ -55,6 +55,24 @@ class InvitationsController < ApplicationController
 
     user.destroy!
     head :no_content
+  end
+
+  def resend
+    user = User.find_by(id: params[:id])
+
+    if user.nil? || user.invited_by_id.nil?
+      render json: { error: "Invitation not found." }, status: :not_found
+      return
+    end
+
+    if user.accepted_at.present?
+      render json: { error: "This invite has already been accepted." }, status: :unprocessable_entity
+      return
+    end
+
+    user.update!(invite_sent_at: Time.current)
+    InviteMailer.invite(user, user.invited_by).deliver_now
+    render json: user.as_json(only: %i[id email name invite_sent_at])
   end
 
   private

@@ -44,4 +44,26 @@ class ApplicationMailerTest < ActionMailer::TestCase
       DummyMailer.send_it(business).deliver_now
     end
   end
+
+  test "raises when a send is attempted while impersonating" do
+    business = BusinessProfile.new(user: users(:member), name: "Has Creds Inc")
+    Current.impersonating = true
+
+    assert_raises(ApplicationMailer::ImpersonationBlockedError) do
+      DummyMailer.send_it(business).deliver_now
+    end
+  ensure
+    Current.reset
+  end
+
+  test "does not raise when not impersonating" do
+    business = BusinessProfile.new(user: users(:member), name: "Has Creds Inc")
+    Current.impersonating = false
+
+    assert_nothing_raised do
+      DummyMailer.send_it(business).deliver_now
+    end
+  ensure
+    Current.reset
+  end
 end
