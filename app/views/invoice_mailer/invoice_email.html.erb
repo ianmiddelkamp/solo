@@ -29,7 +29,7 @@
       </table>
 
       <div class="body">
-        <p>Hi <%= @client.contact_name.presence || @client.name %>,</p>
+        <p>Hi <%= @contact.name.presence || @client.name %>,</p>
         <p>Please find your invoice attached. The total amount due is <strong>$<%= "%.2f" % @invoice.total %></strong>.</p>
         <p>Payment terms: <strong><%= @client.sales_terms.presence || @business.default_payment_terms.presence || "NET 15" %></strong></p>
         <p>Payment can be made by Interac e-Transfer to the email below.</p>

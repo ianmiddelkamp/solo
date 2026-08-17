@@ -1,4 +1,4 @@
-Hi <%= @client.contact_name.presence || @client.name %>,
+Hi <%= @contact.name.presence || @client.name %>,
 
 Please find your invoice (<%= @invoice.number %>) attached. The total amount due is $<%= "%.2f" % @invoice.total %>.
 

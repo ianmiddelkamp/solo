@@ -4,6 +4,7 @@ class PdfGenerator
   def initialize(invoice)
     @invoice  = invoice
     @client   = invoice.client
+    @contact  = invoice.contact
     @business = @client.business_profile
     @items    = invoice.invoice_line_items
                        .includes(time_entry: [:project, :charge_code, :task])
@@ -17,6 +18,7 @@ class PdfGenerator
       assigns: {
         invoice: @invoice,
         client: @client,
+        contact: @contact,
         business: @business,
         items: @items,
         logo_data_uri: @business.logo_data_uri

@@ -23,7 +23,7 @@ export const getUnbilledEntries = (clientId: number, startDate?: string, endDate
 export const createInvoice = (data: unknown) =>
   apiFetch<Invoice>('/invoices', { method: 'POST', body: JSON.stringify(data) });
 
-export const updateInvoice = (id: number, data: Partial<Invoice>) =>
+export const updateInvoice = (id: number, data: Partial<Invoice> & { contact_id?: number }) =>
   apiFetch<Invoice>(`/invoices/${id}`, { method: 'PATCH', body: JSON.stringify({ invoice: data }) });
 
 export const deleteInvoice = (id: number) =>
@@ -39,12 +39,17 @@ export const markAsPaid = (id: number, amountPaid: number, paidAt?: string) =>
 
 // ── PDF & sending ─────────────────────────────────────────────────────────────
 
-export const sendInvoice = (id: number) =>
-  apiFetch<{ message: string }>(`/invoices/${id}/send_invoice`, { method: 'POST' });
+export const sendInvoice = (id: number, contactId?: number) =>
+  apiFetch<{ message: string }>(`/invoices/${id}/send_invoice`, {
+    method: 'POST',
+    body: JSON.stringify(contactId ? { contact_id: contactId } : {}),
+  });
 
-
-export const sendReceipt = (id: number) =>
-  apiFetch<{ message: string }>(`/invoices/${id}/send_receipt`, { method: 'POST' });
+export const sendReceipt = (id: number, contactId?: number) =>
+  apiFetch<{ message: string }>(`/invoices/${id}/send_receipt`, {
+    method: 'POST',
+    body: JSON.stringify(contactId ? { contact_id: contactId } : {}),
+  });
 
 export const regeneratePdf = (id: number) =>
   apiFetch(`/invoices/${id}/regenerate_pdf`, { method: 'POST' });
