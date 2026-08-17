@@ -11,6 +11,7 @@ export function setToken(token: string): void {
 export function clearToken(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('impersonating');
 }
 
 export interface CurrentUser {
@@ -31,6 +32,17 @@ export function setUser(user: CurrentUser): void {
 
 export function isAdmin(): boolean {
   return getUser()?.role === 'admin';
+}
+
+// Set right after a successful impersonate/exit call — the JWT itself is what actually carries
+// impersonation server-side, this flag is purely local UI state so the banner knows to render.
+export function isImpersonating(): boolean {
+  return localStorage.getItem('impersonating') === '1';
+}
+
+export function setImpersonating(value: boolean): void {
+  if (value) localStorage.setItem('impersonating', '1');
+  else localStorage.removeItem('impersonating');
 }
 
 export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T | null> {

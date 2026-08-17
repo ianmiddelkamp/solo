@@ -18,6 +18,9 @@ export const createInvitation = (email: string) =>
 export const deleteInvitation = (id: number) =>
   apiFetch<void>(`/invitations/${id}`, { method: 'DELETE' });
 
+export const resendInvitation = (id: number) =>
+  apiFetch<Invitation>(`/invitations/${id}/resend`, { method: 'POST' });
+
 export const getInvitationByToken = (token: string) =>
   apiFetch<{ email: string }>(`/invitations/${token}`);
 

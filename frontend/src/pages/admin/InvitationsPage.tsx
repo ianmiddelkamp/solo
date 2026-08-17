@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
-import { getInvitations, createInvitation, deleteInvitation } from '../../api/invitations';
+import { getInvitations, createInvitation, deleteInvitation, resendInvitation } from '../../api/invitations';
 import type { Invitation } from '../../api/invitations';
 import { confirm } from '../../services/dialog';
 
@@ -27,6 +27,15 @@ export default function InvitationsPage() {
     if (!await confirm(`Delete the invitation to ${inv.email}?`)) return;
     try {
       await deleteInvitation(inv.id);
+      load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleResend(inv: Invitation) {
+    try {
+      await resendInvitation(inv.id);
       load();
     } catch (err) {
       setError((err as Error).message);
@@ -106,14 +115,22 @@ export default function InvitationsPage() {
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
                     )}
                   </td>
-                  <td className="px-5 py-3 text-sm text-right">
+                  <td className="px-5 py-3 text-sm text-right space-x-3">
                     {!inv.accepted_at && (
-                      <button
-                        onClick={() => handleDelete(inv)}
-                        className="text-red-600 hover:text-red-800 text-xs font-medium"
-                      >
-                        Delete
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleResend(inv)}
+                          className="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+                        >
+                          Resend
+                        </button>
+                        <button
+                          onClick={() => handleDelete(inv)}
+                          className="text-red-600 hover:text-red-800 text-xs font-medium"
+                        >
+                          Delete
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>

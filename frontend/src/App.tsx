@@ -3,7 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import LoginPage from './pages/auth/LoginPage';
 import AcceptInvitePage from './pages/auth/AcceptInvitePage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import InvitationsPage from './pages/admin/InvitationsPage';
+import UsersPage from './pages/admin/UsersPage';
+import UserDetailPage from './pages/admin/UserDetailPage';
 import ClientList from './pages/clients/ClientList';
 import ClientForm from './pages/clients/ClientForm';
 import ProjectList from './pages/projects/ProjectList';
@@ -45,6 +48,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/accept-invite/:token" element={<AcceptInvitePage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
         <Route path="/" element={<RequireAuth><FeaturesProvider><TimerProvider><Layout /></TimerProvider></FeaturesProvider></RequireAuth>}>
           <Route index element={<Navigate to="/clients" replace />} />
@@ -81,6 +85,8 @@ export default function App() {
           <Route path="t2125" element={<T2125ReportPage />} />
 
           <Route path="admin/invitations" element={<RequireAdmin><InvitationsPage /></RequireAdmin>} />
+          <Route path="admin/users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+          <Route path="admin/users/:id" element={<RequireAdmin><UserDetailPage /></RequireAdmin>} />
         </Route>
       </Routes>
     </BrowserRouter>

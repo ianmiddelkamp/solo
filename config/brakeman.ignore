@@ -1,0 +1,29 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Mass Assignment",
+      "warning_code": 105,
+      "fingerprint": "b2b8363ae5315a5eccddc5d8286d499a4c5385718127aa2a0fd9ebf8ca6ab181",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/users_controller.rb",
+      "line": 84,
+      "link": "https://brakemanscanner.org/docs/warning_types/mass_assignment/",
+      "code": "params.require(:user).permit(:name, :email, :role)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "UsersController",
+        "method": "user_params"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "cwe_id": [
+        915
+      ],
+      "note": "Intentional: this endpoint is gated by before_action :require_admin! (UsersController#require_admin!), so only an already-authenticated admin can ever change another user's role. UsersController#update also has an explicit self-demotion guard preventing an admin from changing their own role through this same param. Brakeman can't see the controller-level authorization guard, hence the false positive."
+    }
+  ],
+  "updated": "2026-08-17 12:30:00 -0400",
+  "brakeman_version": "8.0.6"
+}

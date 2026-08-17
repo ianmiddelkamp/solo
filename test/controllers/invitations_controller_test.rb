@@ -114,4 +114,34 @@ class InvitationsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_response :not_found
   end
+
+  test "admin can resend a pending invitation" do
+    original_sent_at = users(:pending_invite).invite_sent_at
+
+    travel 1.hour do
+      post "/invitations/#{users(:pending_invite).id}/resend", headers: auth_headers(users(:admin))
+    end
+    assert_response :success
+
+    users(:pending_invite).reload
+    assert users(:pending_invite).invite_sent_at > original_sent_at
+
+    mail = ActionMailer::Base.deliveries.last
+    assert_equal [ users(:pending_invite).email ], mail.to
+  end
+
+  test "cannot resend an already-accepted invitation" do
+    post "/invitations/#{users(:pending_invite).invite_token}/accept",
+      params: { name: "Accepted User", password: "brandnewpass1" }.to_json,
+      headers: { "Content-Type" => "application/json" }
+    assert_response :success
+
+    post "/invitations/#{users(:pending_invite).id}/resend", headers: auth_headers(users(:admin))
+    assert_response :unprocessable_entity
+  end
+
+  test "non-admin cannot resend an invitation" do
+    post "/invitations/#{users(:pending_invite).id}/resend", headers: auth_headers(users(:member))
+    assert_response :forbidden
+  end
 end

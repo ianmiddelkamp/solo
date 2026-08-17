@@ -27,6 +27,18 @@ class User < ApplicationRecord
     accepted_at.blank?
   end
 
+  def archived?
+    archived_at.present?
+  end
+
+  def archive!
+    update!(archived_at: Time.current)
+  end
+
+  def unarchive!
+    update!(archived_at: nil)
+  end
+
   def accept_invite!(name:, password:)
     update(
       name: name,
@@ -34,6 +46,14 @@ class User < ApplicationRecord
       accepted_at: Time.current,
       invite_token: nil
     )
+  end
+
+  def generate_reset_password_token!
+    update!(reset_password_token: SecureRandom.urlsafe_base64(32), reset_password_sent_at: Time.current)
+  end
+
+  def reset_password!(password:)
+    update(password: password, reset_password_token: nil, reset_password_sent_at: nil)
   end
 
   private

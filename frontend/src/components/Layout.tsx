@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { clearToken, isAdmin } from '../api/index';
 import TimerStatus from './Timer';
+import ImpersonationBanner from './ImpersonationBanner';
 import logo from '../logo_transparent.png';
 
 const navItems: ({ to: string; label: string } | null)[] = [
@@ -23,6 +24,7 @@ const navItems: ({ to: string; label: string } | null)[] = [
 const adminNavItems: ({ to: string; label: string } | null)[] = [
   null, // divider
   { to: '/admin/invitations', label: 'Invitations' },
+  { to: '/admin/users',       label: 'Users' },
 ];
 
 export default function Layout() {
@@ -35,46 +37,49 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <aside className="w-56 bg-gray-900 text-white flex flex-col shrink-0">
-        <div className="px-4 py-4 border-b border-gray-700">
-          <img src={logo} alt="Solo" className="h-8 w-auto mx-auto" />
-        </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {items.map((item, i) =>
-            item === null ? (
-              <div key={`divider-${i}`} className="border-t border-gray-700 my-2" />
-            ) : (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-gray-700 text-white'
-                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            )
-          )}
-        </nav>
-        <TimerStatus />
-        <div className="px-3 py-4 border-t border-gray-700">
-          <button
-            onClick={handleLogout}
-            className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-          >
-            Sign out
-          </button>
-        </div>
-      </aside>
+    <div className="flex flex-col h-screen bg-gray-50">
+      <ImpersonationBanner />
+      <div className="flex flex-1 min-h-0">
+        <aside className="w-56 bg-gray-900 text-white flex flex-col shrink-0">
+          <div className="px-4 py-4 border-b border-gray-700">
+            <img src={logo} alt="Solo" className="h-8 w-auto mx-auto" />
+          </div>
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            {items.map((item, i) =>
+              item === null ? (
+                <div key={`divider-${i}`} className="border-t border-gray-700 my-2" />
+              ) : (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-gray-700 text-white'
+                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    }`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              )
+            )}
+          </nav>
+          <TimerStatus />
+          <div className="px-3 py-4 border-t border-gray-700">
+            <button
+              onClick={handleLogout}
+              className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        <Outlet />
-      </main>
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
