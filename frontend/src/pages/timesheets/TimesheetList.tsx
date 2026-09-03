@@ -324,6 +324,18 @@ export default function TimesheetList() {
             {entries.length === 0 && (
               <p className="px-4 py-8 text-center text-sm text-gray-400">No time entries found.</p>
             )}
+            {entries.length > 0 && (
+              <label className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-sm text-gray-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  ref={(el) => { if (el) el.indeterminate = someChecked; }}
+                  onChange={toggleAll}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                {allChecked ? 'Deselect all' : someChecked ? `${selected.size} selected` : 'Select all'}
+              </label>
+            )}
             {sortedEntries.map((entry) => {
               const invoiced = Boolean(entry.invoice_line_item?.invoice);
               return (
