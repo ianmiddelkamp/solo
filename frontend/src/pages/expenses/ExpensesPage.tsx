@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getExpenses, createExpense, updateExpense, deleteExpense, parseReceipt, fetchReceiptObjectUrl } from '../../api/expenses';
 import { confirm } from '../../services/dialog';
+import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
 import type { Expense } from '../../types';
 import type { ParsedReceipt } from '../../api/expenses';
 
@@ -162,9 +163,18 @@ export default function ExpensesPage() {
   const totalAmount = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const totalHst = expenses.reduce((s, e) => s + Number(e.hst_paid), 0);
 
+  const expenseColumns: TableColumn<Expense>[] = [
+    { key: 'date', label: 'Date', render: (exp) => <span className="whitespace-nowrap">{exp.date}</span> },
+    { key: 'vendor', label: 'Vendor', render: (exp) => exp.vendor || '—' },
+    { key: 'description', label: 'Description', render: (exp) => exp.description },
+    { key: 'category', label: 'Category', render: (exp) => exp.category ? CATEGORY_LABELS[exp.category] || exp.category : '—' },
+    { key: 'amount', label: 'Amount', align: 'right', render: (exp) => fmt(exp.amount) },
+    { key: 'hst', label: 'HST (ITC)', align: 'right', render: (exp) => Number(exp.hst_paid) > 0 ? fmt(exp.hst_paid) : '—' },
+  ];
+
   return (
-    <div className="p-8 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-8 max-w-7xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Expenses</h2>
         <div className="flex items-center gap-2">
           <input
@@ -195,13 +205,13 @@ export default function ExpensesPage() {
       )}
 
       {showForm && (
-        <div className={`mb-6 flex gap-6 items-start ${receiptObjectUrl ? 'flex-row' : ''}`}>
+        <div className="mb-6 flex flex-col md:flex-row gap-6 items-start">
           {/* Form panel */}
           <div className="bg-white rounded-lg shadow p-5 flex-shrink-0 w-full max-w-xl">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">{editingId ? 'Edit Expense' : 'New Expense'}</h2>
             {error && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
                   <input type="date" name="date" value={form.date} onChange={handleChange} required
@@ -218,7 +228,7 @@ export default function ExpensesPage() {
                 <input name="description" value={form.description} onChange={handleChange} required
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2" />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Amount *</label>
                   <input type="number" name="amount" value={form.amount} onChange={handleChange} required min="0" step="0.01"
@@ -271,7 +281,7 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-4 mb-4">
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
           className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2">
           <option value="">All categories</option>
@@ -281,56 +291,44 @@ export default function ExpensesPage() {
       </div>
 
       {expenses.length > 0 ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden mb-4">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="mb-4">
+          <ResponsiveTable
+            columns={expenseColumns}
+            rows={expenses}
+            keyExtractor={(exp) => exp.id}
+            actions={(exp) => (
+              <>
+                {exp.receipt_blob_id && (
+                  <button
+                    onClick={async () => {
+                      const url = await fetchReceiptObjectUrl(exp.id);
+                      window.open(url, '_blank');
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                    title="View receipt"
+                  >
+                    PDF
+                  </button>
+                )}
+                <button onClick={() => startEdit(exp)} className="text-indigo-600 hover:text-indigo-800">Edit</button>
+                <button onClick={() => handleDelete(exp.id)} className="text-red-500 hover:text-red-700">Delete</button>
+              </>
+            )}
+            footer={
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">HST (ITC)</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {expenses.map(exp => (
-                <tr key={exp.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{exp.date}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{exp.vendor || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{exp.description}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{exp.category ? CATEGORY_LABELS[exp.category] || exp.category : '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900 text-right">{fmt(exp.amount)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500 text-right">{Number(exp.hst_paid) > 0 ? fmt(exp.hst_paid) : '—'}</td>
-                  <td className="px-4 py-3 text-right text-sm space-x-3">
-                    {exp.receipt_blob_id && (
-                      <button
-                        onClick={async () => {
-                          const url = await fetchReceiptObjectUrl(exp.id);
-                          window.open(url, '_blank');
-                        }}
-                        className="text-gray-400 hover:text-gray-600"
-                        title="View receipt"
-                      >
-                        PDF
-                      </button>
-                    )}
-                    <button onClick={() => startEdit(exp)} className="text-indigo-600 hover:text-indigo-800">Edit</button>
-                    <button onClick={() => handleDelete(exp.id)} className="text-red-500 hover:text-red-700">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="bg-gray-50 border-t border-gray-200">
-              <tr>
-                <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
-                <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{fmt(totalAmount)}</td>
-                <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{fmt(totalHst)}</td>
+                <td colSpan={4} className="px-6 py-3 text-sm font-semibold text-gray-700">Total</td>
+                <td className="px-6 py-3 text-sm font-semibold text-gray-900 text-right">{fmt(totalAmount)}</td>
+                <td className="px-6 py-3 text-sm font-semibold text-gray-900 text-right">{fmt(totalHst)}</td>
                 <td />
               </tr>
-            </tfoot>
-          </table>
+            }
+            mobileFooter={
+              <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                <span>Total</span>
+                <span className="text-gray-900">{fmt(totalAmount)} <span className="font-normal text-gray-400">(HST {fmt(totalHst)})</span></span>
+              </div>
+            }
+          />
         </div>
       ) : (
         <p className="text-sm text-gray-400">No expenses yet. Add one above.</p>
