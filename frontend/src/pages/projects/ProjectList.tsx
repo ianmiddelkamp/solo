@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProjects, deleteProject } from '../../api/projects';
+import { getProjects } from '../../api/projects';
 import PageHeader from '../../components/PageHeader';
 import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
-import { confirm } from '../../services/dialog';
 import type { Project } from '../../types';
 
 export default function ProjectList() {
@@ -24,16 +23,6 @@ export default function ProjectList() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [filters]);
-
-  async function handleDelete(id: number) {
-    if (!await confirm('Delete this project?')) return;
-    try {
-      await deleteProject(id);
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-    } catch (e) {
-      alert((e as Error).message);
-    }
-  }
 
   function goToProject(id: number) {
     navigate(`/projects/${id}/edit`);
@@ -81,11 +70,6 @@ export default function ProjectList() {
           keyExtractor={(p) => p.id}
           onRowClick={(p) => goToProject(p.id)}
           emptyMessage="No projects yet."
-          actions={(project) => (
-            <button onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }} className="text-red-500 hover:text-red-700">
-              Delete
-            </button>
-          )}
         />
       )}
     </div>

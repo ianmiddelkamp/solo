@@ -55,9 +55,10 @@ class ImpersonationsControllerTest < ActionDispatch::IntegrationTest
 
   test "DELETE requests are blocked while impersonating" do
     client = BusinessProfile.for_user(users(:member)).clients.create!(name: "Existing Client")
+    project = client.projects.create!(name: "Existing Project")
 
-    assert_no_difference "Client.count" do
-      delete "/clients/#{client.id}", headers: impersonation_headers(users(:member), users(:admin))
+    assert_no_difference "Project.count" do
+      delete "/projects/#{project.id}", headers: impersonation_headers(users(:member), users(:admin))
     end
     assert_response :forbidden
   end

@@ -30,6 +30,7 @@ export interface Client {
   notes?: string | null;
   contacts?: Contact[];
   primary_contact?: Contact | null;
+  is_archived?: boolean;
 }
 
 export interface Project {

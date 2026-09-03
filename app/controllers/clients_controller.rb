@@ -1,9 +1,11 @@
 class ClientsController < ApplicationController
-  before_action :set_client, only: [:show, :update, :destroy]
+  before_action :set_client, only: [:show, :update, :archive]
 
   def index
     bp = BusinessProfile.for_user(@current_user)
-    render json: bp.clients.includes(:rates, :contacts).order(:name).as_json(
+    clients = bp.clients.includes(:rates, :contacts).order(:name)
+    clients = clients.where(is_archived: false) unless params[:show_archived].present?
+    render json: clients.as_json(
       methods: %i[current_rate primary_contact],
       include: { contacts: { only: %i[id name email phone phone2 primary] } }
     )
@@ -37,9 +39,18 @@ class ClientsController < ApplicationController
     end
   end
 
-  def destroy
-    @client.destroy
-    head :no_content
+  # Archiving a client also archives all of its projects — an archived client shouldn't leave
+  # active-looking projects behind. Unarchiving the client does NOT cascade back to projects
+  # (some may have been archived independently beforehand for other reasons), so that direction
+  # stays a manual, per-project decision.
+  def archive
+    ActiveRecord::Base.transaction do
+      @client.update!(archive_params)
+      @client.projects.update_all(is_archived: true) if @client.is_archived
+    end
+    render json: client_json(@client)
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   private
@@ -59,6 +70,10 @@ class ClientsController < ApplicationController
 
   def contact_params
     params.fetch(:contact, {}).permit(:name, :email, :phone, :phone2)
+  end
+
+  def archive_params
+    params.require(:client).permit(:is_archived)
   end
 
   def client_json(client)

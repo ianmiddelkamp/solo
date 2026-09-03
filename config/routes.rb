@@ -75,7 +75,10 @@ Rails.application.routes.draw do
   resources :charge_codes, except: [:new, :edit, :show]
   resources :time_entries, only: [:index, :show, :create, :update, :destroy]
 
-  resources :clients do
+  resources :clients, except: [:destroy] do
+    member do
+      patch :archive
+    end
     resource :rate, only: [:show, :update]
     resources :contacts, only: [:index, :create, :update, :destroy]
   end
