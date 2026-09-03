@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getClients, deleteClient } from '../../api/clients';
+import { getClients } from '../../api/clients';
 import PageHeader from '../../components/PageHeader';
 import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
-import { confirm } from '../../services/dialog';
 import type { Client } from '../../types';
 
 export default function ClientList() {
@@ -17,16 +16,6 @@ export default function ClientList() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
-
-  async function handleDelete(id: number) {
-    if (!await confirm('Delete this client?')) return;
-    try {
-      await deleteClient(id);
-      setClients((prev) => prev.filter((c) => c.id !== id));
-    } catch (e) {
-      alert((e as Error).message);
-    }
-  }
 
   const columns: TableColumn<Client>[] = [
     { key: 'name', label: 'Business Name', render: (c) => <span className="font-medium text-gray-900">{c.name}</span> },
@@ -53,10 +42,7 @@ export default function ClientList() {
           keyExtractor={(c) => c.id}
           emptyMessage="No clients yet."
           actions={(client) => (
-            <>
-              <Link to={`/clients/${client.id}/edit`} className="text-indigo-600 hover:text-indigo-800">Edit</Link>
-              <button onClick={() => handleDelete(client.id)} className="text-red-500 hover:text-red-700">Delete</button>
-            </>
+            <Link to={`/clients/${client.id}/edit`} className="text-indigo-600 hover:text-indigo-800">Edit</Link>
           )}
         />
       )}
