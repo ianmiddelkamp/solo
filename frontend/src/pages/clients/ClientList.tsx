@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getClients } from '../../api/clients';
 import PageHeader from '../../components/PageHeader';
 import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
@@ -9,6 +9,7 @@ export default function ClientList() {
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getClients()
@@ -40,10 +41,8 @@ export default function ClientList() {
           columns={columns}
           rows={clients}
           keyExtractor={(c) => c.id}
+          onRowClick={(c) => navigate(`/clients/${c.id}/edit`)}
           emptyMessage="No clients yet."
-          actions={(client) => (
-            <Link to={`/clients/${client.id}/edit`} className="text-indigo-600 hover:text-indigo-800">Edit</Link>
-          )}
         />
       )}
     </div>
