@@ -8,6 +8,8 @@ import type { Invoice, BusinessProfile, PaymentEntry } from '../../types';
 import { DateTime } from 'luxon';
 import PaymentDialog from './dialogs/PaymentDialog';
 import ContactPickerDialog from '../../components/ContactPickerDialog';
+import ActionsMenu, { type ActionMenuItem } from '../../components/ActionsMenu';
+import ScaleToFit from '../../components/ScaleToFit';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -170,6 +172,18 @@ export default function InvoiceDetail() {
   const paymentTerms = invoice.client?.sales_terms || business?.default_payment_terms || 'NET 15';
   const footer = business?.invoice_footer || 'Thank you for your business.';
 
+  // Same actions, same conditions as the button row below — this is what collapses into a
+  // single menu on narrower screens instead of an overflowing row of up to 6 buttons.
+  const actionItems: ActionMenuItem[] = [
+    ...(invoice.status === 'pending' ? [{ label: 'Mark as Sent', onClick: handleMarkAsSent, variant: 'primary' as const }] : []),
+    { label: sending ? 'Sending…' : 'Send Invoice', onClick: handleSendInvoice, disabled: sending, variant: 'primary' },
+    { label: 'Download PDF', onClick: handleDownloadPdf },
+    ...(invoice.status !== 'paid' ? [{ label: 'Mark As Paid', onClick: openPaymentDialog }] : []),
+    ...(invoice.status === 'paid' ? [{ label: sending ? 'Sending…' : 'Send Receipt', onClick: handleSendReceipt, disabled: sending, variant: 'primary' as const }] : []),
+    { label: regenerating ? 'Regenerating…' : 'Regenerate PDF', onClick: handleRegeneratePdf, disabled: regenerating },
+    ...(invoice.status !== 'paid' ? [{ label: 'Delete', onClick: handleDelete, variant: 'danger' as const }] : []),
+  ];
+
   return (
     <div className="p-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
@@ -181,7 +195,10 @@ export default function InvoiceDetail() {
             {invoice.status}
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="md:hidden">
+          <ActionsMenu items={actionItems} />
+        </div>
+        <div className="hidden md:flex items-center gap-3">
           {invoice.status === 'pending' && (
             <button
               onClick={handleMarkAsSent}
@@ -238,6 +255,7 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
+      <ScaleToFit width={896}>
       <div className="bg-white rounded-lg shadow p-6 flex flex-col relative overflow-hidden" style={{ minHeight: '1050px' }}>
         {invoice.status === 'paid' && (
           <div style={{
@@ -394,6 +412,7 @@ export default function InvoiceDetail() {
           {footer}
         </div>
       </div>
+      </ScaleToFit>
       {showPaymentDialog && (
         <PaymentDialog
           payment={paymentEntry!}

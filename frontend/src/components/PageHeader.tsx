@@ -9,7 +9,7 @@ interface Props {
 
 export default function PageHeader({ title, actionLabel, actionTo, action }: Props) {
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
       <h2 className="text-2xl font-semibold text-gray-800">{title}</h2>
       {actionLabel && actionTo && (
         <Link
