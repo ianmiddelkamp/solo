@@ -20,6 +20,12 @@ interface ResponsiveTableProps<T> {
   /** Rendered as the trailing actions column on desktop, and as a small action row on each
    * mobile card. Receives the row so callers can build Edit/Delete/View links inline. */
   actions?: (row: T) => ReactNode;
+  /** Optional totals/summary row — raw `<tr>` markup (with its own `<td>`s/`colSpan`s), rendered
+   * inside a `<tfoot>` on desktop exactly as the caller builds it. */
+  footer?: ReactNode;
+  /** Mobile equivalent of `footer` — plain content (not table markup, since there's no `<table>`
+   * to attach a `<tfoot>` to below md), shown under the stacked cards. */
+  mobileFooter?: ReactNode;
 }
 
 /**
@@ -29,7 +35,7 @@ interface ResponsiveTableProps<T> {
  * of hand-building a separate mobile layout per page.
  */
 export default function ResponsiveTable<T>({
-  columns, rows, keyExtractor, onRowClick, emptyMessage = 'No results.', actions,
+  columns, rows, keyExtractor, onRowClick, emptyMessage = 'No results.', actions, footer, mobileFooter,
 }: ResponsiveTableProps<T>) {
   const clickable = Boolean(onRowClick);
 
@@ -78,6 +84,7 @@ export default function ResponsiveTable<T>({
               </tr>
             ))}
           </tbody>
+          {footer && <tfoot className="bg-gray-50 border-t border-gray-200">{footer}</tfoot>}
         </table>
       </div>
 
@@ -105,6 +112,7 @@ export default function ResponsiveTable<T>({
             )}
           </div>
         ))}
+        {mobileFooter && <div className="p-4 border-t border-gray-200 bg-gray-50">{mobileFooter}</div>}
       </div>
     </div>
   );
