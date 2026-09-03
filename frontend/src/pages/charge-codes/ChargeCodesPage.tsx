@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
+import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
 import { getChargeCodes, createChargeCode, updateChargeCode, deleteChargeCode } from '../../api/chargeCodes';
 import { confirm } from '../../services/dialog';
 import type { ChargeCode } from '../../types';
@@ -68,8 +69,14 @@ export default function ChargeCodesPage() {
     }
   }
 
+  const chargeCodeColumns: TableColumn<ChargeCode>[] = [
+    { key: 'code', label: 'Code', render: (cc) => <span className="font-mono font-medium text-gray-900">{cc.code}</span> },
+    { key: 'description', label: 'Description', render: (cc) => cc.description || '—' },
+    { key: 'rate', label: 'Rate', render: (cc) => cc.rate ? `$${parseFloat(String(cc.rate)).toFixed(2)}/hr` : 'Client rate' },
+  ];
+
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 sm:p-8 max-w-2xl">
       <PageHeader title="Charge Codes" />
 
       <p className="text-sm text-gray-500 mb-6">
@@ -80,7 +87,7 @@ export default function ChargeCodesPage() {
         <h2 className="text-sm font-semibold text-gray-700 mb-4">{editingId ? 'Edit Charge Code' : 'New Charge Code'}</h2>
         {error && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Code *</label>
               <input
@@ -135,33 +142,17 @@ export default function ChargeCodesPage() {
       </div>
 
       {chargeCodes.length > 0 && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rate</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {chargeCodes.map((cc) => (
-                <tr key={cc.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 text-sm font-mono font-medium text-gray-900">{cc.code}</td>
-                  <td className="px-5 py-3 text-sm text-gray-500">{cc.description || '—'}</td>
-                  <td className="px-5 py-3 text-sm text-gray-500">
-                    {cc.rate ? `$${parseFloat(String(cc.rate)).toFixed(2)}/hr` : 'Client rate'}
-                  </td>
-                  <td className="px-5 py-3 text-right text-sm space-x-3">
-                    <button onClick={() => startEdit(cc)} className="text-indigo-600 hover:text-indigo-800">Edit</button>
-                    <button onClick={() => handleDelete(cc.id)} className="text-red-500 hover:text-red-700">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveTable
+          columns={chargeCodeColumns}
+          rows={chargeCodes}
+          keyExtractor={(cc) => cc.id}
+          actions={(cc) => (
+            <>
+              <button onClick={() => startEdit(cc)} className="text-indigo-600 hover:text-indigo-800">Edit</button>
+              <button onClick={() => handleDelete(cc.id)} className="text-red-500 hover:text-red-700">Delete</button>
+            </>
+          )}
+        />
       )}
 
       {chargeCodes.length === 0 && (

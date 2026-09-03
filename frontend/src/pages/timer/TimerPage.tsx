@@ -102,19 +102,19 @@ export default function TimerPage() {
   }
 
   return (
-    <div className="p-8">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Timer</h2>
+    <div>
+      {/* Sticky, full-width timer bar — pinned to the top of the scrollable content area in
+          every viewport, not just mobile. Sticky (not fixed) so it stays scoped to <main>'s own
+          scroll box instead of the whole browser viewport — a fixed position here would overlay
+          the app's own mobile nav bar, which sits above <main> in the layout, not inside it. */}
+      <div className="sticky top-0 z-40 w-full bg-white shadow-sm p-4 sm:p-6 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>
+          )}
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>
-      )}
-
-      <div className="flex gap-8 items-start">
-        <div className="w-96 flex-shrink-0">
-          <div className="bg-white rounded-lg shadow p-8 space-y-6">
-
+          <div className="space-y-6">
             <div className="text-center">
-              <p className="text-6xl font-mono font-semibold text-gray-800 tracking-widest">
+              <p className="text-4xl sm:text-6xl font-mono font-semibold text-gray-800 tracking-widest">
                 {formatElapsed(elapsed)}
               </p>
               {session && (
@@ -151,7 +151,7 @@ export default function TimerPage() {
                   value={description}
                   onChange={(e) => changeDescription(e.target.value)}
                   placeholder="Describe the work…"
-                  rows={8}
+                  rows={4}
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 {session && !stopping && (
@@ -165,7 +165,7 @@ export default function TimerPage() {
                 <button
                   onClick={handleStart}
                   disabled={!projectId}
-                  className="flex-1 bg-indigo-600 text-white font-medium rounded-md px-4 py-2.5 hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                  className="flex-1 bg-indigo-600 text-white text-sm sm:text-base font-medium rounded-md px-3 py-1.5 sm:px-4 sm:py-2.5 hover:bg-indigo-700 disabled:opacity-40 transition-colors"
                 >
                   Start timer
                 </button>
@@ -174,7 +174,7 @@ export default function TimerPage() {
               {session && !stopping && (
                 <button
                   onClick={() => setStopping(true)}
-                  className="flex-1 bg-red-600 text-white font-medium rounded-md px-4 py-2.5 hover:bg-red-700 transition-colors"
+                  className="flex-1 bg-red-600 text-white text-sm sm:text-base font-medium rounded-md px-3 py-1.5 sm:px-4 sm:py-2.5 hover:bg-red-700 transition-colors"
                 >
                   Stop
                 </button>
@@ -184,19 +184,19 @@ export default function TimerPage() {
                 <>
                   <button
                     onClick={handleStop}
-                    className="flex-1 bg-green-600 text-white font-medium rounded-md px-4 py-2.5 hover:bg-green-700 transition-colors"
+                    className="flex-1 bg-green-600 text-white text-sm sm:text-base font-medium rounded-md px-3 py-1.5 sm:px-4 sm:py-2.5 hover:bg-green-700 transition-colors"
                   >
                     Save time entry
                   </button>
                   <button
                     onClick={() => setStopping(false)}
-                    className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900"
+                    className="px-3 py-1.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-700 hover:text-gray-900"
                   >
                     Keep running
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="px-4 py-2.5 text-sm font-medium text-red-500 hover:text-red-700"
+                    className="px-3 py-1.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-medium text-red-500 hover:text-red-700"
                   >
                     Discard
                   </button>
@@ -204,17 +204,16 @@ export default function TimerPage() {
               )}
             </div>
           </div>
-        </div>
+      </div>
 
+      <div className="p-4 sm:p-8">
         {projectId && (
-          <div className="flex-1 min-w-0">
-            <TaskBoard
-              projectId={Number(projectId)}
-              selectedTaskId={taskId}
-              onSelectTask={handleTaskSelect}
-              taskUpdate={taskUpdate}
-            />
-          </div>
+          <TaskBoard
+            projectId={Number(projectId)}
+            selectedTaskId={taskId}
+            onSelectTask={handleTaskSelect}
+            taskUpdate={taskUpdate}
+          />
         )}
       </div>
     </div>

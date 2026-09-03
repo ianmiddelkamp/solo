@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getInvoices, deleteInvoice } from '../../api/invoices';
 import PageHeader from '../../components/PageHeader';
+import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
 import { confirm } from '../../services/dialog';
 import { formatDate } from '../../utils/dates';
 import type { Invoice } from '../../types';
@@ -34,70 +35,51 @@ export default function InvoiceList() {
     }
   }
 
+  const columns: TableColumn<Invoice>[] = [
+    {
+      key: 'number', label: 'Invoice #',
+      render: (inv) => <Link to={`/invoices/${inv.id}`} className="font-medium text-indigo-600 hover:text-indigo-800">{inv.number}</Link>,
+    },
+    { key: 'client', label: 'Client', render: (inv) => inv.client?.name || '—' },
+    {
+      key: 'period', label: 'Period',
+      render: (inv) => inv.start_date && inv.end_date
+        ? `${formatDate(inv.start_date)} – ${formatDate(inv.end_date)}`
+        : formatDate(inv.start_date),
+    },
+    { key: 'total', label: 'Total', render: (inv) => `$${inv.total != null ? inv.total.toFixed(2) : '—'}` },
+    {
+      key: 'status', label: 'Status',
+      render: (inv) => (
+        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[inv.status] ?? ''}`}>
+          {inv.status}
+        </span>
+      ),
+    },
+    { key: 'outstanding', label: 'Outstanding', render: (inv) => `$${inv.outstanding != null ? inv.outstanding.toFixed(2) : '—'}` },
+    { key: 'paid_at', label: 'Payment Date', render: (inv) => inv.paid_at != null ? formatDate(inv.paid_at) : '—' },
+  ];
+
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader title="Invoices" actionLabel="+ New Invoice" actionTo="/invoices/new" />
 
       {loading && <p className="text-gray-500">Loading…</p>}
       {error && <p className="text-red-600">{error}</p>}
 
       {!loading && !error && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {invoices.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">No invoices yet.</td>
-                </tr>
-              )}
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    <Link to={`/invoices/${inv.id}`} className="text-indigo-600 hover:text-indigo-800">
-                      {inv.number}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{inv.client?.name || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {inv.start_date && inv.end_date
-                      ? `${formatDate(inv.start_date)} – ${formatDate(inv.end_date)}`
-                      : formatDate(inv.start_date)}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    ${inv.total != null ? `${inv.total?.toFixed(2)}` : '—'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[inv.status] ?? ''}`}>
-                      {inv.status}
-                    </span>
-                  </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    ${inv.outstanding != null ? `${inv.outstanding.toFixed(2)}` : '—'}
-                  </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {inv.paid_at != null ?  formatDate(inv.paid_at)  : '—'}
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm space-x-3">
-                    <Link to={`/invoices/${inv.id}`} className="text-indigo-600 hover:text-indigo-800">View</Link>
-                    <button onClick={() => handleDelete(inv.id)} className="text-red-500 hover:text-red-700">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveTable
+          columns={columns}
+          rows={invoices}
+          keyExtractor={(inv) => inv.id}
+          emptyMessage="No invoices yet."
+          actions={(inv) => (
+            <>
+              <Link to={`/invoices/${inv.id}`} className="text-indigo-600 hover:text-indigo-800">View</Link>
+              <button onClick={() => handleDelete(inv.id)} className="text-red-500 hover:text-red-700">Delete</button>
+            </>
+          )}
+        />
       )}
     </div>
   );

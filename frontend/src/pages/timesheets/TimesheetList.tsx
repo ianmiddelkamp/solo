@@ -143,7 +143,7 @@ export default function TimesheetList() {
   const someChecked = selected.size > 0 && selected.size < entries.length;
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader title="Timesheets" actionLabel="+ Log Time" actionTo="/timesheets/new" />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -208,7 +208,7 @@ export default function TimesheetList() {
 
       {!loading && !error && (
         <>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -315,6 +315,77 @@ export default function TimesheetList() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile: one card per entry — same data as the table above, laid out for a phone
+              instead of scrolled sideways. Sorting/selection/bulk-invoice all still work here,
+              same handlers as the desktop table. */}
+          <div className="md:hidden bg-white rounded-lg shadow divide-y divide-gray-200">
+            {entries.length === 0 && (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">No time entries found.</p>
+            )}
+            {sortedEntries.map((entry) => {
+              const invoiced = Boolean(entry.invoice_line_item?.invoice);
+              return (
+                <div key={entry.id} className={`p-4 ${selected.has(entry.id) ? 'bg-indigo-50' : ''}`}>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(entry.id)}
+                      onChange={() => toggleOne(entry.id)}
+                      className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-gray-900">{formatDate(entry.date)}</span>
+                        <span className="text-sm font-medium text-gray-900">{entry.hours.toFixed(2)} hrs</span>
+                      </div>
+                      <div className="text-sm text-gray-500 mt-0.5">
+                        {clientNameForEntry(entry)}
+                        {' · '}
+                        {entry.project
+                          ? entry.project.name
+                          : <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{entry.charge_code?.code}</span>
+                        }
+                      </div>
+                      {entry.task?.title && <div className="text-sm text-gray-500 mt-0.5">{entry.task.title}</div>}
+                      {entry.description && <div className="text-xs text-gray-400 mt-0.5 truncate">{entry.description}</div>}
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <div className="text-xs">
+                          {invoiced
+                            ? <Link to={`/invoices/${entry.invoice_line_item!.invoice!.id}`} className="text-indigo-600 hover:text-indigo-800 font-medium">
+                              {entry.invoice_line_item!.invoice!.number}
+                            </Link>
+                            : <span className="text-gray-400">Unbilled</span>
+                          }
+                        </div>
+                        <div className="text-sm space-x-3">
+                          {invoiced ? (
+                            <span className="text-gray-300">Locked</span>
+                          ) : (
+                            <>
+                              <Link
+                                to={`/timesheets/${entry.id}/edit`}
+                                state={entry.charge_code
+                                  ? { chargeCodeId: entry.charge_code_id, clientId: entry.client_id }
+                                  : { projectId: entry.project?.id, clientId: entry.project?.client_id }
+                                }
+                                className="text-indigo-600 hover:text-indigo-800"
+                              >
+                                Edit
+                              </Link>
+                              <button onClick={() => handleDelete(entry)} className="text-red-500 hover:text-red-700">
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {entries.length > 0 && (
