@@ -106,7 +106,7 @@ export default function ResponsiveTable<T>({
               ))}
             </dl>
             {actions && (
-              <div className="mt-3 flex items-center gap-4 text-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="mt-3 flex items-center justify-end gap-4 text-sm" onClick={(e) => e.stopPropagation()}>
                 {actions(row)}
               </div>
             )}
