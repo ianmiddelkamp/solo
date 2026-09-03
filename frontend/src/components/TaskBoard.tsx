@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
@@ -169,7 +170,7 @@ function TaskItem({ task, projectId, groupId, onUpdate, onDelete, onSelect, sele
         <button
           {...(attributes as React.ButtonHTMLAttributes<HTMLButtonElement>)}
           {...(listeners as React.ButtonHTMLAttributes<HTMLButtonElement>)}
-          className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing flex-shrink-0"
+          className="flex items-center justify-center w-8 h-8 -m-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
           aria-label="Drag to reorder"
         >
           ⠿
@@ -483,7 +484,14 @@ export default function TaskBoard({ projectId, selectedTaskId, onSelectTask, tas
   const [activeTask, setActiveTask] = useState<DragData | null>(null);
   const features = useFeatures();
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // Separate mouse/touch sensors (not a single PointerSensor) so each gets an
+  // activationConstraint suited to its input: mouse drags start after a small movement
+  // (distance), while touch needs a short press-and-hold (delay) so a normal scroll gesture
+  // doesn't get hijacked into a drag the instant a finger moves 5px.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  );
 
   useEffect(() => {
     if (!projectId) return;
