@@ -1,7 +1,10 @@
 class PasswordResetMailer < ApplicationMailer
-  def reset(user)
+  # sender is the admin who triggered the reset — the mailer needs *their* business (matching
+  # InviteMailer's pattern) since it's used for SMTP credentials/from-address, not the target
+  # user's own business, which they haven't logged in yet to configure email for.
+  def reset(user, sender)
     @user            = user
-    @business        = BusinessProfile.for_user(user)
+    @business        = BusinessProfile.for_user(sender)
     @app_name        = Rails.application.config.x.app_name
     @reset_url       = "#{frontend_host}/reset-password/#{@user.reset_password_token}"
 

@@ -41,7 +41,7 @@ class UsersController < ApplicationController
 
   def send_password_reset
     @user.generate_reset_password_token!
-    PasswordResetMailer.reset(@user).deliver_now
+    PasswordResetMailer.reset(@user, @current_user).deliver_now
     render json: { message: "Password reset email sent to #{@user.email}." }
   end
 
