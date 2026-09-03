@@ -5,6 +5,8 @@ import { getBusinessProfile } from '../../api/businessProfile';
 import { formatDate } from '../../utils/dates';
 import { confirm } from '../../services/dialog';
 import ContactPickerDialog from '../../components/ContactPickerDialog';
+import ActionsMenu, { type ActionMenuItem } from '../../components/ActionsMenu';
+import ScaleToFit from '../../components/ScaleToFit';
 import type { Estimate, BusinessProfile } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -142,6 +144,16 @@ export default function EstimateDetail() {
 
   const footer = business?.estimate_footer || 'This is an estimate only. The final invoice may vary based on actual hours worked.';
 
+  // Same actions, same conditions as the button row below — this is what collapses into a
+  // single menu on narrower screens instead of an overflowing row of buttons.
+  const actionItems: ActionMenuItem[] = [
+    ...(transition ? [{ label: transition.label, onClick: handleStatusUpdate, variant: 'primary' as const }] : []),
+    ...(estimate.status === 'sent' ? [{ label: 'Mark as Declined', onClick: handleMarkDeclined, variant: 'danger' as const }] : []),
+    { label: sending ? 'Sending…' : 'Send Estimate', onClick: handleSend, disabled: sending, variant: 'primary' },
+    { label: 'Download PDF', onClick: handleDownloadPdf },
+    { label: regenerating ? 'Regenerating…' : 'Regenerate PDF', onClick: handleRegeneratePdf, disabled: regenerating },
+  ];
+
   return (
     <div className="p-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
@@ -153,7 +165,10 @@ export default function EstimateDetail() {
             {estimate.status}
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="md:hidden">
+          <ActionsMenu items={actionItems} />
+        </div>
+        <div className="hidden md:flex items-center gap-3">
           {transition && (
             <button
               onClick={handleStatusUpdate}
@@ -193,6 +208,7 @@ export default function EstimateDetail() {
         </div>
       </div>
 
+      <ScaleToFit width={896}>
       <div className="bg-white rounded-lg shadow p-6 flex flex-col" style={{ minHeight: '1050px' }}>
         <div className="flex justify-between items-start">
           <div>
@@ -351,6 +367,7 @@ export default function EstimateDetail() {
           Thank you for your business.
         </div>
       </div>
+      </ScaleToFit>
 
       {estimate.changes && (
         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-md">
