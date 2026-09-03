@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getClient, createClient, updateClient } from '../../api/clients';
+import { getClient, createClient, updateClient, archiveClient } from '../../api/clients';
 import { getClientRate, setClientRate } from '../../api/rates';
 import PageHeader from '../../components/PageHeader';
 import ClientContacts from '../../components/ClientContacts';
+import { confirm } from '../../services/dialog';
 
 const TERMS_OPTIONS = ['NET 15', 'NET 30', 'NET 45', 'NET 60', 'Due on Receipt'];
 
@@ -59,6 +60,7 @@ export default function ClientForm() {
   const [rate, setRateValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [archived, setArchived] = useState(false);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -75,6 +77,7 @@ export default function ClientForm() {
             country: c.country ?? '',
             sales_terms: c.sales_terms ?? 'NET 15',
           });
+          setArchived(Boolean(c.is_archived));
         })
         .catch((e) => setError(e.message));
 
@@ -90,6 +93,20 @@ export default function ClientForm() {
 
   function handleContactChange(e: React.ChangeEvent<HTMLInputElement>) {
     setPrimaryContact((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  async function confirmArchive() {
+    const ok = await confirm(`${archived ? "Un-Archive" : "Archive"} this client?`)
+    if (ok) {
+      try {
+        const response = await archiveClient(Number(id), !archived)
+        if (response?.success ?? true) {
+          setArchived(!archived)
+        }
+      } catch (err) {
+        setError((err as Error).message);
+      }
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -211,6 +228,22 @@ export default function ClientForm() {
       {isEdit && id && (
         <div className="bg-white rounded-lg shadow p-6 mt-6">
           <ClientContacts clientId={Number(id)} />
+        </div>
+      )}
+
+      {isEdit && (
+        <div className="w-full mt-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Client Actions</h3>
+          <div className="bg-white rounded-lg shadow p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={confirmArchive}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${archived ? "bg-indigo-600" : "bg-red-500"}`}>
+                {archived ? "Un-archive" : "Archive"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -11,12 +11,24 @@ export default function ClientList() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const [filters, setFilters] = useState({
+    showArchived: false,
+  });
+
   useEffect(() => {
-    getClients()
+    const params: Record<string, string> = {};
+    if (filters.showArchived) params.show_archived = 'true';
+    getClients(params)
       .then((data) => { if (data) setClients(data); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [filters]);
+
+  function setFilter(key: string, value: string | boolean) {
+    setFilters((prev) => {
+      return { ...prev, [key]: value };
+    });
+  }
 
   const columns: TableColumn<Client>[] = [
     { key: 'name', label: 'Business Name', render: (c) => <span className="font-medium text-gray-900">{c.name}</span> },
@@ -32,6 +44,17 @@ export default function ClientList() {
   return (
     <div className="p-4 sm:p-8">
       <PageHeader title="Clients" actionLabel="+ New Client" actionTo="/clients/new" />
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={filters.showArchived}
+            onChange={(e) => setFilter('showArchived', e.target.checked)}
+            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Show Archived
+        </label>
+      </div>
 
       {loading && <p className="text-gray-500">Loading…</p>}
       {error && <p className="text-red-600">{error}</p>}
