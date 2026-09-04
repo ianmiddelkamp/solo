@@ -649,7 +649,7 @@ export default function TaskBoard({ projectId, selectedTaskId, onSelectTask, tas
       .catch(() => {});
   }
   const exportOptions = [
-    { label: 'Doc', onClick: () => runExport('doc', 'doc') },
+    { label: 'Doc', onClick: () => runExport('docx', 'docx') },
     { label: 'Markdown', onClick: () => runExport('md', 'md') },
   ];
 

@@ -35,15 +35,17 @@ class TaskGroupsController < ApplicationController
     head :no_content
   end
 
-  # GET /projects/:project_id/task_groups/export?format=doc|md
+  # GET /projects/:project_id/task_groups/export?format=docx|md
   def export
     groups = @project.task_groups.includes(tasks: :time_entries).order(:position)
+    markdown = task_groups_markdown(groups)
 
     case params[:format]
-    when "doc"
-      send_data task_groups_doc(groups), filename: "task-groups.doc", type: "application/msword"
+    when "docx"
+      send_data MarkdownToDocx.convert(markdown), filename: "task-groups.docx",
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     when "md"
-      send_data task_groups_markdown(groups), filename: "task-groups.md", type: "text/markdown"
+      send_data markdown, filename: "task-groups.md", type: "text/markdown"
     else
       render json: { error: "Unsupported format" }, status: :unprocessable_entity
     end
@@ -82,27 +84,6 @@ class TaskGroupsController < ApplicationController
 
   def status_label(status)
     STATUS_LABEL[status] || status
-  end
-
-  # Word opens an HTML document saved with a .doc extension as a real document (headings,
-  # tables, etc.) without needing a binary .docx-writing library.
-  def task_groups_doc(groups)
-    sections = groups.map do |group|
-      rows = group.tasks.map do |t|
-        "<tr><td>#{t.title}</td><td>#{status_label(t.status)}</td>" \
-        "<td>#{t.estimated_hours ? format_hours(t.estimated_hours) : '—'}</td>" \
-        "<td>#{t.actual_hours.positive? ? format_hours(t.actual_hours) : '—'}</td></tr>"
-      end.join
-      rows = "<tr><td colspan=\"4\">No tasks</td></tr>" if rows.blank?
-
-      "<h2>#{group.title} (est. #{format_hours(group.estimated_hours_total)}, " \
-      "actual #{format_hours(group.actual_hours_total)})</h2>" \
-      "<table border=\"1\" cellspacing=\"0\" cellpadding=\"4\">" \
-      "<tr><th>Task</th><th>Status</th><th>Estimate</th><th>Actual</th></tr>#{rows}</table>"
-    end.join
-
-    "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Task Groups</title></head>" \
-    "<body><h1>Task Groups</h1>#{sections}</body></html>"
   end
 
   def task_groups_markdown(groups)
