@@ -91,6 +91,7 @@ Rails.application.routes.draw do
     member do
       post :sow_import, to: "sow_imports#create"
       patch :archive
+      post :ai_summary
     end
     resource :rate, only: [:show, :update]
     resources :time_entries, only: [:index, :create, :update, :destroy]
