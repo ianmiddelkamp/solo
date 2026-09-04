@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getProject, createProject, updateProject, toggleArchive } from '../../api/projects';
+import { getProject, createProject, updateProject, toggleArchive, AI_SUMMARY_PURPOSES } from '../../api/projects';
+import { downloadExport } from '../../utils/export';
+import ExportMenu from '../../components/ExportMenu';
 import { getClients } from '../../api/clients';
 import { getProjectRate, setProjectRate, getClientRate } from '../../api/rates';
 import PageHeader from '../../components/PageHeader';
@@ -8,7 +10,8 @@ import TaskBoard from '../../components/TaskBoard';
 import ProjectDisbursements from '../../components/ProjectDisbursements';
 import ProjectEstimates from '../../components/ProjectEstimates';
 import ProjectAttachments from '../../components/ProjectAttachments';
-import type { Client } from '../../types';
+import { getAttachments } from '../../api/attachments';
+import type { Client, Attachment } from '../../types';
 import { confirm } from '../../services/dialog';
 
 const EMPTY = { name: '', client_id: '', description: '' };
@@ -26,11 +29,18 @@ export default function ProjectForm() {
   const [saving, setSaving] = useState(false);
   const [archived, setArchived] = useState(false)
 
+  const [summaryPurpose, setSummaryPurpose] = useState(AI_SUMMARY_PURPOSES[0].key);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryAttachments, setSummaryAttachments] = useState<Attachment[]>([]);
+  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<Set<number>>(new Set());
+
   const detailsRef = useRef<HTMLDivElement>(null);
   const tasksRef = useRef<HTMLDivElement>(null);
   const disbursementsRef = useRef<HTMLDivElement>(null);
   const estimatesRef = useRef<HTMLDivElement>(null);
   const filesRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   function scrollToSection(ref: React.RefObject<HTMLDivElement | null>) {
@@ -53,8 +63,22 @@ export default function ProjectForm() {
       getProjectRate(projectId)
         .then((r) => setRateValue(r?.rate != null ? String(r.rate) : ''))
         .catch(() => { });
+
+      loadSummaryAttachments(projectId);
     }
   }, [id, isEdit]);
+
+  function loadSummaryAttachments(id: number) {
+    getAttachments(id).then((data) => { if (data) setSummaryAttachments(data); }).catch(() => {});
+  }
+
+  function toggleAttachment(id: number) {
+    setSelectedAttachmentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
@@ -94,6 +118,27 @@ export default function ProjectForm() {
     }
   }
 
+  async function handleGenerateSummary(format: 'docx' | 'md') {
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const purposeSlug = summaryPurpose.replace(/_/g, '-');
+      await downloadExport(`/projects/${projectId}/ai_summary`, `${purposeSlug}.${format}`, {
+        method: 'POST',
+        body: JSON.stringify({ purpose: summaryPurpose, format, attachment_ids: [...selectedAttachmentIds] }),
+      });
+    } catch (err) {
+      setSummaryError((err as Error).message);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
+
+  const summaryExportOptions = [
+    { label: 'Doc', onClick: () => handleGenerateSummary('docx') },
+    { label: 'Markdown', onClick: () => handleGenerateSummary('md') },
+  ];
+
   async function confirmArchive() {
     const ok = await confirm(`${archived ? "Un-Archive" : "Archive"} this project?`)
     if (ok) {
@@ -116,6 +161,7 @@ export default function ProjectForm() {
         { label: 'Disbursements', ref: disbursementsRef },
         { label: 'Estimates', ref: estimatesRef },
         { label: 'Files', ref: filesRef },
+        { label: 'AI Summary', ref: summaryRef },
         { label: 'Actions', ref: actionsRef },
       ]
     : [];
@@ -242,6 +288,67 @@ export default function ProjectForm() {
         {isEdit && projectId && (
           <div ref={filesRef} className="w-full scroll-mt-8">
             <ProjectAttachments projectId={projectId} />
+          </div>
+        )}
+
+        {isEdit && projectId && (
+          <div ref={summaryRef} className="w-full max-w-3xl scroll-mt-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">AI Summary</h3>
+            <div className="bg-white rounded-lg shadow p-6 space-y-4">
+              <p className="text-sm text-gray-500">
+                Generates a summary from this project's details, task groups, and any documents you select below
+                using Claude, and downloads it in the format you choose.
+              </p>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="block text-sm font-medium text-gray-700">Include documents</span>
+                  {projectId && (
+                    <button
+                      type="button"
+                      onClick={() => loadSummaryAttachments(projectId)}
+                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                    >
+                      Refresh list
+                    </button>
+                  )}
+                </div>
+                {summaryAttachments.length === 0 ? (
+                  <p className="text-sm text-gray-400">No files attached to this project yet.</p>
+                ) : (
+                  <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-2">
+                    {summaryAttachments.map((a) => (
+                      <label key={a.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={selectedAttachmentIds.has(a.id)}
+                          onChange={() => toggleAttachment(a.id)}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        {a.filename}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <select
+                  value={summaryPurpose}
+                  onChange={(e) => setSummaryPurpose(e.target.value)}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  {AI_SUMMARY_PURPOSES.map((p) => (
+                    <option key={p.key} value={p.key}>{p.label}</option>
+                  ))}
+                </select>
+                <ExportMenu options={summaryExportOptions} disabled={summaryLoading} />
+              </div>
+
+              {summaryError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{summaryError}</div>
+              )}
+            </div>
           </div>
         )}
 

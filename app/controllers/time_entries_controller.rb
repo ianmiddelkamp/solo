@@ -3,35 +3,7 @@ class TimeEntriesController < ApplicationController
   before_action :set_time_entry, only: [:show, :update, :destroy]
 
   def index
-    entries = if @project
-      @project.time_entries
-    else
-      scope = @current_user.time_entries
-
-      if params[:client_id].present?
-        scope = scope.left_outer_joins(:project).where(
-          "(time_entries.project_id IS NOT NULL AND projects.client_id = :cid) OR " \
-          "(time_entries.charge_code_id IS NOT NULL AND time_entries.client_id = :cid)",
-          cid: params[:client_id]
-        )
-      end
-
-      scope = scope.where(project_id: params[:project_id]) if params[:project_id].present?
-      scope = scope.where(project_id: nil) if params[:hide_charge_codes].blank? && params[:charge_code_id].present?
-      scope = scope.where.not(project_id: nil) if params[:hide_charge_codes] == "true"
-
-      if params[:status] == "unbilled"
-        scope = scope.left_outer_joins(:invoice_line_item).where(invoice_line_items: { id: nil })
-      elsif params[:status] == "billed"
-        scope = scope.joins(:invoice_line_item)
-      end
-
-      scope
-    end
-
-    render json: entries
-      .includes(:task, :charge_code, :client, invoice_line_item: :invoice, project: :client)
-      .order(date: :desc)
+    render json: filtered_entries
       .as_json(
         include: {
           task: { only: %i[id title] },
@@ -41,6 +13,43 @@ class TimeEntriesController < ApplicationController
           invoice_line_item: { include: { invoice: { methods: :number } } }
         }
       )
+  end
+
+  # TODO: replace with the business's own configured timezone once BusinessProfile supports one.
+  EXPORT_TIME_ZONE = "Eastern Time (US & Canada)"
+
+  # GET /time_entries/export?format=csv|xlsx|md
+  # Exports the same filtered set as #index (client_id/project_id/status/hide_charge_codes),
+  # so the export always matches what's currently shown on the Timesheets page. Times are
+  # converted explicitly to EXPORT_TIME_ZONE rather than relying on the app's global
+  # config.time_zone, so the export doesn't silently drift if that default ever changes.
+  def export
+    headers = ["Date", "Start Time", "End Time", "Hours", "Client", "Project / Code", "Task", "Description", "Invoice"]
+    rows = filtered_entries.map do |entry|
+      [
+        entry.date.to_s,
+        entry.started_at&.in_time_zone(EXPORT_TIME_ZONE)&.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        entry.stopped_at&.in_time_zone(EXPORT_TIME_ZONE)&.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        entry.hours,
+        entry.client&.name || entry.project&.client&.name,
+        entry.project&.name || entry.charge_code&.code,
+        entry.task&.title,
+        entry.description,
+        entry.invoice_line_item&.invoice&.number || "Unbilled"
+      ]
+    end
+
+    case params[:format]
+    when "csv"
+      send_data TableExport.csv(headers, rows), filename: "timesheets.csv", type: "text/csv"
+    when "xlsx"
+      send_data TableExport.xlsx("Timesheets", headers, rows), filename: "timesheets.xlsx",
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    when "md"
+      send_data TableExport.markdown("Timesheets", headers, rows), filename: "timesheets.md", type: "text/markdown"
+    else
+      render json: { error: "Unsupported format" }, status: :unprocessable_entity
+    end
   end
 
   def show
@@ -85,6 +94,36 @@ class TimeEntriesController < ApplicationController
   end
 
   private
+
+  def filtered_entries
+    entries = if @project
+      @project.time_entries
+    else
+      scope = @current_user.time_entries
+
+      if params[:client_id].present?
+        scope = scope.left_outer_joins(:project).where(
+          "(time_entries.project_id IS NOT NULL AND projects.client_id = :cid) OR " \
+          "(time_entries.charge_code_id IS NOT NULL AND time_entries.client_id = :cid)",
+          cid: params[:client_id]
+        )
+      end
+
+      scope = scope.where(project_id: params[:project_id]) if params[:project_id].present?
+      scope = scope.where(project_id: nil) if params[:hide_charge_codes].blank? && params[:charge_code_id].present?
+      scope = scope.where.not(project_id: nil) if params[:hide_charge_codes] == "true"
+
+      if params[:status] == "unbilled"
+        scope = scope.left_outer_joins(:invoice_line_item).where(invoice_line_items: { id: nil })
+      elsif params[:status] == "billed"
+        scope = scope.joins(:invoice_line_item)
+      end
+
+      scope
+    end
+
+    entries.includes(:task, :charge_code, :client, invoice_line_item: :invoice, project: :client).order(date: :desc)
+  end
 
   def set_project
     @project = current_business_profile.projects.find(params[:project_id])

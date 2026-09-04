@@ -51,4 +51,34 @@ class TimeEntriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal @my_project.id, entry.reload.project_id
   end
+
+  test "export returns csv, xlsx, and md for supported formats" do
+    TimeEntry.create!(user: users(:admin), date: Date.current, hours: 1.5, project: @my_project)
+
+    get "/time_entries/export", params: { format: "csv" }, headers: auth_headers(users(:admin))
+    assert_response :success
+    assert_includes response.body, "My Client"
+
+    get "/time_entries/export", params: { format: "xlsx" }, headers: auth_headers(users(:admin))
+    assert_response :success
+
+    get "/time_entries/export", params: { format: "md" }, headers: auth_headers(users(:admin))
+    assert_response :success
+    assert_includes response.body, "# Timesheets"
+  end
+
+  test "export rejects an unsupported format" do
+    get "/time_entries/export", params: { format: "pdf" }, headers: auth_headers(users(:admin))
+    assert_response :unprocessable_entity
+  end
+
+  test "export only includes the current tenant's entries" do
+    TimeEntry.create!(user: users(:admin), date: Date.current, hours: 1, project: @my_project)
+    TimeEntry.create!(user: users(:member), date: Date.current, hours: 1, project: @their_project)
+
+    get "/time_entries/export", params: { format: "csv" }, headers: auth_headers(users(:admin))
+    assert_response :success
+    assert_includes response.body, "My Client"
+    refute_includes response.body, "Their Client"
+  end
 end

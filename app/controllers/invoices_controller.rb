@@ -6,6 +6,36 @@ class InvoicesController < ApplicationController
     render json: invoices.as_json(include: :client, methods: [:number, :outstanding])
   end
 
+  # GET /invoices/export?format=csv|xlsx|md
+  # TODO: replace with the business's own configured timezone once BusinessProfile supports one.
+  EXPORT_TIME_ZONE = "Eastern Time (US & Canada)"
+
+  def export
+    invoices = current_business_profile.invoices.includes(:client).order(created_at: :desc)
+    headers = ["Invoice #", "Client", "Period", "Total", "Status", "Outstanding", "Payment Date"]
+    rows = invoices.map do |inv|
+      period = if inv.start_date && inv.end_date
+        "#{inv.start_date} - #{inv.end_date}"
+      else
+        inv.start_date.to_s
+      end
+      paid_date = inv.paid_at&.in_time_zone(EXPORT_TIME_ZONE)&.to_date&.to_s
+      [inv.number, inv.client&.name, period, inv.total, inv.status, inv.outstanding, paid_date]
+    end
+
+    case params[:format]
+    when "csv"
+      send_data TableExport.csv(headers, rows), filename: "invoices.csv", type: "text/csv"
+    when "xlsx"
+      send_data TableExport.xlsx("Invoices", headers, rows), filename: "invoices.xlsx",
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    when "md"
+      send_data TableExport.markdown("Invoices", headers, rows), filename: "invoices.md", type: "text/markdown"
+    else
+      render json: { error: "Unsupported format" }, status: :unprocessable_entity
+    end
+  end
+
   def show
     render json: invoice_json(@invoice)
   end

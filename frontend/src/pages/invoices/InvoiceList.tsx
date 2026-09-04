@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { getInvoices, deleteInvoice } from '../../api/invoices';
 import PageHeader from '../../components/PageHeader';
 import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
+import ExportMenu from '../../components/ExportMenu';
 import { confirm } from '../../services/dialog';
 import { formatDate } from '../../utils/dates';
+import { downloadExport } from '../../utils/export';
 import type { Invoice } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -60,9 +62,23 @@ export default function InvoiceList() {
     { key: 'paid_at', label: 'Payment Date', render: (inv) => inv.paid_at != null ? formatDate(inv.paid_at) : '—' },
   ];
 
+  function runExport(format: string, extension: string) {
+    downloadExport(`/invoices/export?format=${format}`, `invoices.${extension}`)
+      .catch((e) => setError(e.message));
+  }
+  const exportOptions = [
+    { label: 'CSV', onClick: () => runExport('csv', 'csv') },
+    { label: 'Excel', onClick: () => runExport('xlsx', 'xlsx') },
+    { label: 'Markdown', onClick: () => runExport('md', 'md') },
+  ];
+
   return (
     <div className="p-4 sm:p-8">
       <PageHeader title="Invoices" actionLabel="+ New Invoice" actionTo="/invoices/new" />
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <ExportMenu options={exportOptions} />
+      </div>
 
       {loading && <p className="text-gray-500">Loading…</p>}
       {error && <p className="text-red-600">{error}</p>}
