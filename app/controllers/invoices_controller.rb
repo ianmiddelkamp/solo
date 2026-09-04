@@ -7,6 +7,9 @@ class InvoicesController < ApplicationController
   end
 
   # GET /invoices/export?format=csv|xlsx|md
+  # TODO: replace with the business's own configured timezone once BusinessProfile supports one.
+  EXPORT_TIME_ZONE = "Eastern Time (US & Canada)"
+
   def export
     invoices = current_business_profile.invoices.includes(:client).order(created_at: :desc)
     headers = ["Invoice #", "Client", "Period", "Total", "Status", "Outstanding", "Payment Date"]
@@ -16,7 +19,8 @@ class InvoicesController < ApplicationController
       else
         inv.start_date.to_s
       end
-      [inv.number, inv.client&.name, period, inv.total, inv.status, inv.outstanding, inv.paid_at&.to_date&.to_s]
+      paid_date = inv.paid_at&.in_time_zone(EXPORT_TIME_ZONE)&.to_date&.to_s
+      [inv.number, inv.client&.name, period, inv.total, inv.status, inv.outstanding, paid_date]
     end
 
     case params[:format]

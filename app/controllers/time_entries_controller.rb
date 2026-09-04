@@ -15,16 +15,21 @@ class TimeEntriesController < ApplicationController
       )
   end
 
+  # TODO: replace with the business's own configured timezone once BusinessProfile supports one.
+  EXPORT_TIME_ZONE = "Eastern Time (US & Canada)"
+
   # GET /time_entries/export?format=csv|xlsx|md
   # Exports the same filtered set as #index (client_id/project_id/status/hide_charge_codes),
-  # so the export always matches what's currently shown on the Timesheets page.
+  # so the export always matches what's currently shown on the Timesheets page. Times are
+  # converted explicitly to EXPORT_TIME_ZONE rather than relying on the app's global
+  # config.time_zone, so the export doesn't silently drift if that default ever changes.
   def export
     headers = ["Date", "Start Time", "End Time", "Hours", "Client", "Project / Code", "Task", "Description", "Invoice"]
     rows = filtered_entries.map do |entry|
       [
         entry.date.to_s,
-        entry.started_at&.to_s,
-        entry.stopped_at&.to_s,
+        entry.started_at&.in_time_zone(EXPORT_TIME_ZONE)&.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        entry.stopped_at&.in_time_zone(EXPORT_TIME_ZONE)&.strftime("%Y-%m-%d %H:%M:%S %Z"),
         entry.hours,
         entry.client&.name || entry.project&.client&.name,
         entry.project&.name || entry.charge_code&.code,
