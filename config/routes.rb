@@ -49,6 +49,7 @@ Rails.application.routes.draw do
   resources :invoices, except: [:new, :edit] do
     collection do
       get :unbilled_entries
+      get :export
     end
     member do
       get  :pdf
@@ -73,7 +74,11 @@ Rails.application.routes.draw do
   get "/t2125", to: "t2125#show"
 
   resources :charge_codes, except: [:new, :edit, :show]
-  resources :time_entries, only: [:index, :show, :create, :update, :destroy]
+  resources :time_entries, only: [:index, :show, :create, :update, :destroy] do
+    collection do
+      get :export
+    end
+  end
 
   resources :clients, except: [:destroy] do
     member do
@@ -96,6 +101,7 @@ Rails.application.routes.draw do
     resources :task_groups, only: [:index, :create, :update, :destroy] do
       collection do
         patch :reorder
+        get :export
       end
       resources :tasks, only: [:create, :update, :destroy] do
         collection do

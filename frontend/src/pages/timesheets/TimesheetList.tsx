@@ -4,7 +4,9 @@ import { getClients } from '../../api/clients';
 import { getProjects } from '../../api/projects';
 import { getAllTimeEntries, deleteTimeEntry, deleteChargeCodeTimeEntry } from '../../api/timeEntries';
 import PageHeader from '../../components/PageHeader';
+import ExportMenu from '../../components/ExportMenu';
 import { formatDateTime, formatDate } from '../../utils/dates';
+import { downloadExport } from '../../utils/export';
 import { confirm } from '../../services/dialog';
 import type { Client, Project, TimeEntry } from '../../types';
 
@@ -142,6 +144,24 @@ export default function TimesheetList() {
   const allChecked = entries.length > 0 && selected.size === entries.length;
   const someChecked = selected.size > 0 && selected.size < entries.length;
 
+  function exportParams(format: string) {
+    const params: Record<string, string> = { format };
+    if (filters.clientId) params.client_id = filters.clientId;
+    if (filters.projectId) params.project_id = filters.projectId;
+    if (filters.status !== 'all') params.status = filters.status;
+    if (filters.hideChargeCodes) params.hide_charge_codes = 'true';
+    return new URLSearchParams(params).toString();
+  }
+  function runExport(format: string, extension: string) {
+    downloadExport(`/time_entries/export?${exportParams(format)}`, `timesheets.${extension}`)
+      .catch((e) => setError(e.message));
+  }
+  const exportOptions = [
+    { label: 'CSV', onClick: () => runExport('csv', 'csv') },
+    { label: 'Excel', onClick: () => runExport('xlsx', 'xlsx') },
+    { label: 'Markdown', onClick: () => runExport('md', 'md') },
+  ];
+
   return (
     <div className="p-4 sm:p-8">
       <PageHeader title="Timesheets" actionLabel="+ Log Time" actionTo="/timesheets/new" />
@@ -184,6 +204,8 @@ export default function TimesheetList() {
           />
           Hide charge codes
         </label>
+
+        <ExportMenu options={exportOptions} />
 
         {selected.size > 0 && (
           <div className="ml-auto flex items-center gap-3">

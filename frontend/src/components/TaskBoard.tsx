@@ -30,6 +30,8 @@ import {
 } from '../api/tasks';
 import { confirm } from '../services/dialog';
 import SowImport from './SowImport';
+import ExportMenu from './ExportMenu';
+import { downloadExport } from '../utils/export';
 import { useFeatures } from '../context/FeaturesContext';
 import type { Task, TaskGroup } from '../types';
 
@@ -642,9 +644,21 @@ export default function TaskBoard({ projectId, selectedTaskId, onSelectTask, tas
     }
   }
 
+  function runExport(format: string, extension: string) {
+    downloadExport(`/projects/${projectId}/task_groups/export?format=${format}`, `task-groups.${extension}`)
+      .catch(() => {});
+  }
+  const exportOptions = [
+    { label: 'Doc', onClick: () => runExport('doc', 'doc') },
+    { label: 'Markdown', onClick: () => runExport('md', 'md') },
+  ];
+
   return (
     <div className="w-full max-w-3xl">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">Task Groups</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-800">Task Groups</h3>
+        <ExportMenu options={exportOptions} />
+      </div>
 
       <DndContext
         sensors={sensors}

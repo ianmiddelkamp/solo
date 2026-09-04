@@ -36,6 +36,8 @@ gem "redis", ">= 4.0.1"
 gem "bcrypt", "~> 3.1.1"
 gem "jwt"
 gem "docx"
+gem "caxlsx"
+gem "csv"
 gem "premailer-rails"
 
 # Error tracking (backend only — see project_monitoring_plan memory for why)

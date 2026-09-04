@@ -97,4 +97,24 @@ class InvoicesControllerTest < ActionDispatch::IntegrationTest
     assert_includes body["message"], secondary.email
     assert_equal @primary, invoice.reload.contact
   end
+
+  test "export returns csv, xlsx, and md for supported formats" do
+    InvoiceGenerator.new(client: @client, contact: @primary).generate!
+
+    get "/invoices/export", params: { format: "csv" }, headers: auth_headers(users(:admin))
+    assert_response :success
+    assert_includes response.body, @client.name
+
+    get "/invoices/export", params: { format: "xlsx" }, headers: auth_headers(users(:admin))
+    assert_response :success
+
+    get "/invoices/export", params: { format: "md" }, headers: auth_headers(users(:admin))
+    assert_response :success
+    assert_includes response.body, "# Invoices"
+  end
+
+  test "export rejects an unsupported format" do
+    get "/invoices/export", params: { format: "pdf" }, headers: auth_headers(users(:admin))
+    assert_response :unprocessable_entity
+  end
 end
