@@ -1,5 +1,5 @@
 class ProjectsController < ApplicationController
-  before_action :set_project, only: [:show, :update, :destroy, :archive]
+  before_action :set_project, only: [:show, :update, :destroy, :archive, :ai_summary]
 
   def index
     projects = current_business_profile.projects.includes(client: :contacts, rates: []).order(:name)
@@ -45,6 +45,33 @@ class ProjectsController < ApplicationController
   def destroy
     @project.destroy
     head :no_content
+  end
+
+  # POST /projects/:id/ai_summary
+  # body: { purpose: "project_brief", format: "docx" | "md" }
+  def ai_summary
+    unless ProjectAiSummary.available?
+      return render json: { error: "AI summary is not configured." }, status: :service_unavailable
+    end
+
+    purpose = params[:purpose].presence || "project_brief"
+    content = ProjectAiSummary.new(
+      project: @project,
+      purpose: purpose,
+      attachment_ids: params[:attachment_ids]
+    ).generate
+
+    case params[:format]
+    when "docx"
+      send_data MarkdownToDocx.convert(content), filename: "#{purpose.dasherize}.docx",
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    when "md"
+      send_data content, filename: "#{purpose.dasherize}.md", type: "text/markdown"
+    else
+      render json: { error: "Unsupported format" }, status: :unprocessable_entity
+    end
+  rescue => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private

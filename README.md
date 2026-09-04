@@ -54,6 +54,7 @@ Fill in values before starting.
 | `DB_PASS` | PostgreSQL password | required |
 | `SOW_PROVIDER` | AI provider for SOW import (`groq`, `anthropic`, `gemini`) | `anthropic` |
 | `SOW_API_KEY` | API key for the chosen provider | required |
+| `ANTHROPIC_API_KEY` | Claude API key, used directly (not via `SOW_PROVIDER`) by receipt parsing and the AI project summary feature | required for those features |
 
 ### Build and Run
 
@@ -199,6 +200,7 @@ DELETE /projects/:id
 GET    /projects/:id/rate
 PATCH  /projects/:id/rate
 POST   /projects/:id/sow_import
+POST   /projects/:id/ai_summary                (?format=docx|md, body: { purpose, attachment_ids })
 ```
 
 ### Task Groups & Tasks
@@ -208,6 +210,7 @@ POST   /projects/:project_id/task_groups
 PATCH  /projects/:project_id/task_groups/:id
 DELETE /projects/:project_id/task_groups/:id
 PATCH  /projects/:project_id/task_groups/reorder
+GET    /projects/:project_id/task_groups/export        (?format=docx|md)
 POST   /projects/:project_id/task_groups/:task_group_id/tasks
 PATCH  /projects/:project_id/task_groups/:task_group_id/tasks/:id
 DELETE /projects/:project_id/task_groups/:task_group_id/tasks/:id
@@ -234,6 +237,7 @@ GET    /time_entries/:id
 POST   /time_entries                           (charge code entries)
 PATCH  /time_entries/:id
 DELETE /time_entries/:id
+GET    /time_entries/export                    (?format=csv|xlsx|md, same filters as the index above)
 ```
 
 ### Charge Codes
@@ -276,6 +280,7 @@ GET    /invoices/unbilled_entries              (?client_id, ?start_date, ?end_da
 GET    /invoices/:id/pdf
 POST   /invoices/:id/regenerate_pdf
 POST   /invoices/:id/send_invoice
+GET    /invoices/export                        (?format=csv|xlsx|md)
 ```
 
 ## Key Concepts
@@ -334,6 +339,36 @@ To switch providers, set `SOW_PROVIDER` in `.env`:
 
 Files up to 20MB can be attached to projects. Stored via Active Storage. In production, files persist in a named Docker volume (`storage_prod`).
 
+### Exports
+
+Timesheets, Invoices, and a project's Task Groups can each be exported — generated entirely
+server-side (`TableExport` for CSV/XLSX/Markdown, `MarkdownToDocx` for `.docx`) and returned as a
+file download, rather than assembled in the browser:
+
+- **Timesheets** (`GET /time_entries/export`) and **Invoices** (`GET /invoices/export`) — CSV,
+  Excel (`.xlsx`), or Markdown. The timesheets export respects the same filters as the list page
+  (`client_id`/`project_id`/`status`/`hide_charge_codes`).
+- **Task Groups** (`GET /projects/:id/task_groups/export`) — a real `.docx` (built by hand as a
+  minimal OOXML package, since the `docx` gem can only open/edit an existing file, not create one)
+  or Markdown, including a table of each group's tasks, statuses, and hours.
+
+All timestamps are converted explicitly to Eastern (`EXPORT_TIME_ZONE` in the relevant
+controllers) rather than relying on the app's global `config.time_zone` — to be replaced with a
+per-`BusinessProfile` timezone once that's added.
+
+### AI Project Summary
+
+`POST /projects/:id/ai_summary` (service: `ProjectAiSummary`) generates a summary of a project —
+its details, task groups, and any of its attachments the caller explicitly selects — via the
+Claude API, returned as a `.docx` or `.md` download. Instructions are keyed by `purpose`; only
+`"project_brief"` exists today, but more can be added without changing how project context is
+gathered.
+
+Documents are opt-in: nothing is sent to Claude unless `attachment_ids` names it. Limits (kept
+independent of the 20MB per-file upload limit): at most 5 selected attachments, 6MB each (staying
+under Anthropic's 32MB per-request limit for PDFs), 20k extracted characters per text/Word
+document. Returns `503` if `ANTHROPIC_API_KEY` isn't configured.
+
 ### Email Delivery
 
 Invoices and estimates are emailed via Action Mailer, to the document's resolved contact (its
@@ -371,12 +406,12 @@ The React SPA lives in [`frontend/`](frontend/) and is served by the Docker stac
 | `/clients/:id/edit` | ClientForm | Edit an existing client; manage its contacts (add/edit/make-primary/delete, role tags) |
 | `/projects` | ProjectList | View all projects |
 | `/projects/new` | ProjectForm | Create a new project |
-| `/projects/:id/edit` | ProjectForm | Edit project, manage task board (with SOW import), manage attachments |
-| `/timesheets` | TimesheetList | View all time entries with filters, sorting, selection, and invoice actions |
+| `/projects/:id/edit` | ProjectForm | Edit project, manage task board (with SOW import, task group export, and AI project summary), manage attachments |
+| `/timesheets` | TimesheetList | View all time entries with filters, sorting, selection, invoice actions, and export |
 | `/timesheets/new` | TimesheetForm | Log a new time entry against a project or charge code |
 | `/timesheets/:id/edit` | TimesheetForm | Edit a time entry |
 | `/timer` | TimerPage | Start/stop timer, select project and task |
-| `/invoices` | InvoiceList | View all invoices with status badges |
+| `/invoices` | InvoiceList | View all invoices with status badges and export |
 | `/invoices/new` | InvoiceForm | Select unbilled entries and generate an invoice |
 | `/invoices/:id` | InvoiceDetail | View line items, send, download, or regenerate PDF |
 | `/estimates` | EstimateList | View all estimates |
@@ -390,7 +425,7 @@ The React SPA lives in [`frontend/`](frontend/) and is served by the Docker stac
 ```
 frontend/src/
   api/              # API client modules (one per resource)
-  components/       # Shared components (Layout, TaskBoard, Timer, dialogs, etc.)
+  components/       # Shared components (Layout, TaskBoard, Timer, ExportMenu, dialogs, etc.)
   context/          # TimerContext — shared timer state across pages
   pages/
     auth/

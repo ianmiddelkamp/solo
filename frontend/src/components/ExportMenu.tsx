@@ -7,9 +7,11 @@ interface ExportOption {
 
 interface ExportMenuProps {
   options: ExportOption[];
+  label?: string;
+  disabled?: boolean;
 }
 
-export default function ExportMenu({ options }: ExportMenuProps) {
+export default function ExportMenu({ options, label = 'Export', disabled }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -26,9 +28,10 @@ export default function ExportMenu({ options }: ExportMenuProps) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+        disabled={disabled}
+        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Export ▾
+        {disabled ? 'Generating…' : `${label} ▾`}
       </button>
       {open && (
         <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
