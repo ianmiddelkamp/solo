@@ -49,7 +49,7 @@ export default function HelpButton({ title, children }: Props) {
       {open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="relative bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-6">
+          <div className="relative bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-6 text-left">
             <div className="flex items-start justify-between mb-3 gap-3">
               <h2 className="text-base font-semibold text-gray-900">{title}</h2>
               <button

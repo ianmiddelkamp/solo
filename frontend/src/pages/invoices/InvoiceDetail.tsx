@@ -196,6 +196,7 @@ export default function InvoiceDetail() {
           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[invoice.status]}`}>
             {invoice.status}
           </span>
+          <HelpButton title={invoiceContactsHelp.title}>{invoiceContactsHelp.content}</HelpButton>
         </div>
         <div className="md:hidden">
           <ActionsMenu items={actionItems} />
@@ -302,10 +303,7 @@ export default function InvoiceDetail() {
             </div>
           </div>
           <div>
-            <div className="flex items-center gap-1.5 mb-1">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Bill To</p>
-              <HelpButton title={invoiceContactsHelp.title}>{invoiceContactsHelp.content}</HelpButton>
-            </div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Bill To</p>
             <p className="text-sm font-semibold text-gray-900">{invoice.client?.name}</p>
             <div className="text-xs text-gray-500 leading-relaxed mt-1">
               {editingContact ? (

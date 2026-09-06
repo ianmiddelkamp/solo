@@ -148,7 +148,7 @@ export const timesheetFormHelp = {
       </ul>
       <p>
         To switch from a calculated entry back to a typed one, clear both the Start and End time
-        fields — Hours unlocks for editing again.
+        fields — Hours unlocks for editing again. Clients will not see start and end times.
       </p>
       <p>
         <strong>Description</strong> is optional, but it's not just a personal note — once this
