@@ -5,6 +5,8 @@ import { getProjects } from '../../api/projects';
 import { getAllTimeEntries, deleteTimeEntry, deleteChargeCodeTimeEntry } from '../../api/timeEntries';
 import PageHeader from '../../components/PageHeader';
 import ExportMenu from '../../components/ExportMenu';
+import HelpButton from '../../components/HelpButton';
+import { timesheetsListHelp } from '../../content/helpCopy';
 import { formatDateTime, formatDate } from '../../utils/dates';
 import { downloadExport } from '../../utils/export';
 import { confirm } from '../../services/dialog';
@@ -164,7 +166,12 @@ export default function TimesheetList() {
 
   return (
     <div className="p-4 sm:p-8">
-      <PageHeader title="Timesheets" actionLabel="+ Log Time" actionTo="/timesheets/new" />
+      <PageHeader
+        title="Timesheets"
+        actionLabel="+ Log Time"
+        actionTo="/timesheets/new"
+        help={<HelpButton title={timesheetsListHelp.title}>{timesheetsListHelp.content}</HelpButton>}
+      />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <select

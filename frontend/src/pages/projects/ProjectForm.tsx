@@ -6,6 +6,8 @@ import ExportMenu from '../../components/ExportMenu';
 import { getClients } from '../../api/clients';
 import { getProjectRate, setProjectRate, getClientRate } from '../../api/rates';
 import PageHeader from '../../components/PageHeader';
+import HelpButton from '../../components/HelpButton';
+import { projectRateHelp } from '../../content/helpCopy';
 import TaskBoard from '../../components/TaskBoard';
 import ProjectDisbursements from '../../components/ProjectDisbursements';
 import ProjectEstimates from '../../components/ProjectEstimates';
@@ -226,7 +228,10 @@ export default function ProjectForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hourly Rate ($)</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                Hourly Rate ($)
+                <HelpButton title={projectRateHelp.title}>{projectRateHelp.content}</HelpButton>
+              </label>
               <input
                 type="number"
                 name="rate"

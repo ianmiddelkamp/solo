@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { calculateHstReturn, createHstReturn } from '../../api/hstReturns';
+import HelpButton from '../../components/HelpButton';
+import { newHstReturnDialogHelp } from '../../content/helpCopy';
 import type { HstReturn, HstCalculation } from '../../types';
 
 function lastQuarter(): { start: string; end: string } {
@@ -82,7 +84,10 @@ export default function NewHstReturnDialog({ onClose, onCreated }: Props) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">New HST Return</h2>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">New HST Return</h2>
+          <HelpButton title={newHstReturnDialogHelp.title}>{newHstReturnDialogHelp.content}</HelpButton>
+        </div>
 
         {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{error}</div>}
 
