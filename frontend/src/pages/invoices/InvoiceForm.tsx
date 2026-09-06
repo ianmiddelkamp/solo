@@ -97,7 +97,10 @@ export default function InvoiceForm() {
         end_date: form.end_date,
         time_entry_ids: [...selected],
       });
-      if (invoice) navigate(`/invoices/${invoice.id}`);
+      if (invoice) {
+        if (invoice.warnings?.length) alert(invoice.warnings.join('\n\n'));
+        navigate(`/invoices/${invoice.id}`);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {

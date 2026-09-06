@@ -97,8 +97,8 @@ class EstimatesController < ApplicationController
           "actual_hours"    => i.task&.actual_hours.to_f
         }
       },
-      last_sent_total: snapshot_items.sum { |i| i.task&.status == "done" ? i.task.actual_hours.to_f * i.rate : i.amount } +
-                       snapshot_items.sum { |i| (i.task&.status == "done" ? i.task.actual_hours.to_f * i.rate : i.amount) * i.tax_rate / 100 }
+      last_sent_total: snapshot_items.sum(&:display_amount) +
+                       snapshot_items.sum { |i| i.display_amount * i.tax_rate / 100 }
     )
 
     render json: { message: "Estimate sent to #{contact.email}." }
@@ -125,7 +125,7 @@ class EstimatesController < ApplicationController
 
   def set_estimate
     @estimate = current_business_profile.estimates
-      .includes(estimate_line_items: [{ task: :time_entries }, :disbursement], contact: [])
+      .includes(estimate_line_items: [{ task: [:time_entries, :task_group] }, :disbursement], contact: [])
       .find(params[:id])
   end
 
@@ -200,9 +200,8 @@ class EstimatesController < ApplicationController
     return nil if added.empty? && removed.empty? && changed.empty? && completed.empty?
 
     line_items      = estimate.estimate_line_items.includes(task: :time_entries)
-    item_amount     = ->(i) { i.task&.status == "done" ? i.task.actual_hours.to_f * i.rate : i.amount }
-    effective_total = line_items.sum { |i| item_amount.call(i) } +
-                      line_items.sum { |i| item_amount.call(i) * i.tax_rate / 100 }
+    effective_total = line_items.sum(&:display_amount) +
+                      line_items.sum { |i| i.display_amount * i.tax_rate / 100 }
 
     {
       added: added,
@@ -224,13 +223,16 @@ class EstimatesController < ApplicationController
       methods: :number,
       include: {
         project: {
-          only: %i[id name],
+          only: %i[id name billing_mode billing_amount show_task_breakdown show_hours show_actual_hours],
           include: { client: { include: { contacts: { only: %i[id name email phone phone2 primary] } } } }
         },
         contact: { only: %i[id name email phone phone2 primary] },
         estimate_line_items: {
           include: {
-            task: { only: %i[id title status], methods: %i[actual_hours] },
+            task: {
+              only: %i[id title status], methods: %i[actual_hours],
+              include: { task_group: { only: %i[id title position] } }
+            },
             disbursement: { only: %i[id description] }
           }
         }

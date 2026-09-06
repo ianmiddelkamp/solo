@@ -8,47 +8,10 @@
       logo_data_uri: @logo_data_uri,
       subtitle: "Project: #{@project.name}" %>
 
-<table>
-  <thead>
-    <tr>
-      <th>Description</th>
-      <th class="right">Est. Hours</th>
-      <th class="right">Rate</th>
-      <th class="right">Amount</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @items.each do |item| %>
-      <% is_disbursement = item.disbursement_id.present?
-         done = item.task&.status == 'done'
-         actual_hours = done ? item.task.actual_hours.to_f : nil
-         display_amount = done ? (actual_hours * item.rate) : item.amount %>
-      <tr>
-        <td>
-          <%= item.description.presence || "—" %>
-          <% if done %>
-            <span style="display:inline-block; margin-left:6px; padding:1px 5px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; background:#dcfce7; color:#15803d; border-radius:3px;">Completed</span>
-          <% end %>
-        </td>
-        <td class="right">
-          <% if is_disbursement %>
-            &mdash;
-          <% elsif done %>
-            <span style="color:#6b7280;">est. <%= "%.2f" % item.hours %> &rarr;</span> <strong><%= "%.2f" % actual_hours %></strong>
-          <% else %>
-            <%= "%.2f" % item.hours %>
-          <% end %>
-        </td>
-        <td class="right"><%= is_disbursement ? "&mdash;".html_safe : "$#{"%.2f" % item.rate}" %></td>
-        <td class="right">$<%= "%.2f" % display_amount %></td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
+<%= render "pdfs/line_items_table", items: @items, document_type: :estimate, project: @project %>
 
-<% item_amount = ->(i) { i.task&.status == 'done' ? i.task.actual_hours.to_f * i.rate : i.amount }
-   subtotal   = @items.sum { |i| item_amount.call(i) }
-   tax_amount = @items.sum { |i| item_amount.call(i) * i.tax_rate / 100 }
+<% subtotal   = @items.sum(&:display_amount)
+   tax_amount = @items.sum { |i| i.display_amount * i.tax_rate / 100 }
    tax_rate   = @items.map(&:tax_rate).find { |r| r > 0 } %>
 <div class="total-section">
   <div style="min-width:320px;">

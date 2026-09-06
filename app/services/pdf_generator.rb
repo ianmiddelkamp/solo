@@ -6,9 +6,11 @@ class PdfGenerator
     @client   = invoice.client
     @contact  = invoice.contact
     @business = @client.business_profile
+    # Ordered by id (insertion order), not time_entry.date — fixed/adjustment lines have no
+    # time_entry to sort by, and InvoiceGenerator already creates rows in the desired order.
     @items    = invoice.invoice_line_items
-                       .includes(time_entry: [:project, :charge_code, :task])
-                       .order("time_entries.date ASC")
+                       .includes(time_entry: [:project, :charge_code, :task], project: [], task: :task_group)
+                       .order(:id)
   end
 
   def generate

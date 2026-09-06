@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_06_091340) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_06_221515) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -247,11 +247,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_091340) do
     t.text "description"
     t.decimal "hours", precision: 5, scale: 2
     t.bigint "invoice_id", null: false
+    t.string "kind", default: "time", null: false
+    t.bigint "project_id"
     t.decimal "rate", precision: 10, scale: 2
+    t.bigint "task_id"
     t.decimal "tax_rate", precision: 5, scale: 2, default: "0.0", null: false
-    t.bigint "time_entry_id", null: false
+    t.bigint "time_entry_id"
     t.datetime "updated_at", null: false
     t.index ["invoice_id"], name: "index_invoice_line_items_on_invoice_id"
+    t.index ["project_id"], name: "index_invoice_line_items_on_project_id"
+    t.index ["task_id"], name: "index_invoice_line_items_on_task_id"
     t.index ["time_entry_id"], name: "index_invoice_line_items_on_time_entry_id"
   end
 
@@ -274,11 +279,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_091340) do
   end
 
   create_table "projects", force: :cascade do |t|
+    t.decimal "billing_amount", precision: 10, scale: 2
+    t.string "billing_mode", default: "hourly", null: false
     t.bigint "client_id", null: false
     t.datetime "created_at", null: false
     t.text "description"
     t.boolean "is_archived", default: false, null: false
     t.string "name", null: false
+    t.boolean "show_actual_hours", default: true, null: false
+    t.boolean "show_hours", default: true, null: false
+    t.boolean "show_task_breakdown", default: true, null: false
     t.datetime "updated_at", null: false
     t.index ["client_id"], name: "index_projects_on_client_id"
   end
@@ -331,6 +341,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_091340) do
     t.date "date", null: false
     t.text "description"
     t.decimal "hours", precision: 5, scale: 2, null: false
+    t.bigint "invoice_id"
     t.bigint "project_id"
     t.datetime "started_at"
     t.datetime "stopped_at"
@@ -339,6 +350,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_091340) do
     t.bigint "user_id", null: false
     t.index ["charge_code_id"], name: "index_time_entries_on_charge_code_id"
     t.index ["client_id"], name: "index_time_entries_on_client_id"
+    t.index ["invoice_id"], name: "index_time_entries_on_invoice_id"
     t.index ["project_id"], name: "index_time_entries_on_project_id"
     t.index ["task_id"], name: "index_time_entries_on_task_id"
     t.index ["user_id"], name: "index_time_entries_on_user_id"
@@ -399,6 +411,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_091340) do
   add_foreign_key "impersonation_sessions", "users"
   add_foreign_key "impersonation_sessions", "users", column: "impersonator_id"
   add_foreign_key "invoice_line_items", "invoices"
+  add_foreign_key "invoice_line_items", "projects"
+  add_foreign_key "invoice_line_items", "tasks"
   add_foreign_key "invoice_line_items", "time_entries"
   add_foreign_key "invoices", "clients"
   add_foreign_key "invoices", "contacts"
@@ -411,6 +425,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_091340) do
   add_foreign_key "tasks", "task_groups"
   add_foreign_key "time_entries", "charge_codes"
   add_foreign_key "time_entries", "clients"
+  add_foreign_key "time_entries", "invoices"
   add_foreign_key "time_entries", "projects"
   add_foreign_key "time_entries", "tasks"
   add_foreign_key "time_entries", "users"

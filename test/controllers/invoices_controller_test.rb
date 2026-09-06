@@ -117,4 +117,86 @@ class InvoicesControllerTest < ActionDispatch::IntegrationTest
     get "/invoices/export", params: { format: "pdf" }, headers: auth_headers(users(:admin))
     assert_response :unprocessable_entity
   end
+
+  test "create skips just the exhausted capped project and warns, billing the rest of the client normally" do
+    capped_project = @client.projects.create!(name: "Capped", billing_mode: "capped", billing_amount: 100)
+    capped_project.rates.create!(rate: 100)
+    capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+    # This first generate! also consumes @project's stray entry from setup, so it's billed and
+    # gone before the real test invoice — a fresh entry is needed after exhausting the cap.
+    InvoiceGenerator.new(client: @client, contact: @primary).generate!
+    capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+    @project.rates.create!(rate: 50)
+    TimeEntry.create!(user: users(:admin), project: @project, date: Date.current, hours: 2)
+
+    stub_pdf_rendering do
+      post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    end
+
+    assert_response :created
+    body = JSON.parse(response.body)
+    assert_equal 100, body["total"] # just @project's 2h * $50 — capped skipped
+    assert_equal 1, body["warnings"].size
+    assert_includes body["warnings"].first, "billing cap"
+  end
+
+  test "create returns 422 with a clear message when a capped project's exhausted cap is the only unbilled work" do
+    client = @bp.clients.create!(name: "Capped-Only Client")
+    contact = client.contacts.create!(name: "Primary", primary: true)
+    capped_project = client.projects.create!(name: "Capped", billing_mode: "capped", billing_amount: 100)
+    capped_project.rates.create!(rate: 100)
+    capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+    InvoiceGenerator.new(client: client, contact: contact).generate!
+    capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+
+    post "/invoices", params: { client_id: client.id }, headers: auth_headers(users(:admin))
+
+    assert_response :unprocessable_entity
+    body = JSON.parse(response.body)
+    assert_includes body["error"], "billing cap"
+  end
+
+  test "create surfaces a warning when a fixed-price project's billed breakdown drifted from its quote" do
+    project = @client.projects.create!(name: "Fixed", billing_mode: "fixed_price", billing_amount: 5000)
+    project.rates.create!(rate: 100)
+    task = project.task_groups.create!(title: "Phase 1").tasks.create!(title: "Design", status: "todo", estimated_hours: 10)
+    EstimateGenerator.new(project: project, contact: @primary).generate!
+    task.update!(estimated_hours: 20)
+
+    stub_pdf_rendering do
+      post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    end
+    assert_response :created
+
+    body = JSON.parse(response.body)
+    assert_equal 1, body["warnings"].size
+    assert_includes body["warnings"].first, "Design"
+  end
+
+  test "create returns no warnings when a fixed-price project's billed breakdown matches its quote" do
+    project = @client.projects.create!(name: "Fixed", billing_mode: "fixed_price", billing_amount: 5000)
+    project.rates.create!(rate: 100)
+    project.task_groups.create!(title: "Phase 1").tasks.create!(title: "Design", status: "todo", estimated_hours: 10)
+    EstimateGenerator.new(project: project, contact: @primary).generate!
+
+    stub_pdf_rendering do
+      post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    end
+    assert_response :created
+
+    body = JSON.parse(response.body)
+    assert_equal [], body["warnings"]
+  end
+
+  test "unbilled_entries excludes entries already consumed by a fixed-price invoice" do
+    fixed_project = @client.projects.create!(name: "Fixed", billing_mode: "fixed_price", billing_amount: 500)
+    entry = fixed_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 3)
+    InvoiceGenerator.new(client: @client, contact: @primary).generate!
+
+    get "/invoices/unbilled_entries", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    assert_response :success
+
+    ids = JSON.parse(response.body).map { |e| e["id"] }
+    assert_not_includes ids, entry.id
+  end
 end

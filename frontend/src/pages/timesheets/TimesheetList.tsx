@@ -98,7 +98,7 @@ export default function TimesheetList() {
 
   const selectedEntries = entries.filter((e) => selected.has(e.id));
   const selectedTotalHours = selectedEntries.reduce((prev, curr) => prev + curr.hours, 0).toFixed(2);
-  const allSelectedUnbilled = selectedEntries.length > 0 && selectedEntries.every((e) => !e.invoice_line_item);
+  const allSelectedUnbilled = selectedEntries.length > 0 && selectedEntries.every((e) => !e.invoice);
   const selectedClientIds = new Set(
     selectedEntries.map((e) => e.project ? String(e.project.client_id) : String(e.client_id))
   );
@@ -286,7 +286,7 @@ export default function TimesheetList() {
                   </tr>
                 )}
                 {sortedEntries.map((entry) => {
-                  const invoiced = Boolean(entry.invoice_line_item?.invoice);
+                  const invoiced = Boolean(entry.invoice);
                   return (
                     <tr key={entry.id} className={`hover:bg-gray-50 ${selected.has(entry.id) ? 'bg-indigo-50' : ''}`}>
                       <td className="px-4 py-3">
@@ -312,8 +312,8 @@ export default function TimesheetList() {
                       <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{entry.description || '—'}</td>
                       <td className="px-4 py-3 text-sm">
                         {invoiced
-                          ? <Link to={`/invoices/${entry.invoice_line_item!.invoice!.id}`} className="text-indigo-600 hover:text-indigo-800 font-medium">
-                            {entry.invoice_line_item!.invoice!.number}
+                          ? <Link to={`/invoices/${entry.invoice!.id}`} className="text-indigo-600 hover:text-indigo-800 font-medium">
+                            {entry.invoice!.number}
                           </Link>
                           : <span className="text-gray-400">Unbilled</span>
                         }
@@ -366,7 +366,7 @@ export default function TimesheetList() {
               </label>
             )}
             {sortedEntries.map((entry) => {
-              const invoiced = Boolean(entry.invoice_line_item?.invoice);
+              const invoiced = Boolean(entry.invoice);
               return (
                 <div key={entry.id} className={`p-4 ${selected.has(entry.id) ? 'bg-indigo-50' : ''}`}>
                   <div className="flex items-start gap-3">
@@ -394,8 +394,8 @@ export default function TimesheetList() {
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <div className="text-xs">
                           {invoiced
-                            ? <Link to={`/invoices/${entry.invoice_line_item!.invoice!.id}`} className="text-indigo-600 hover:text-indigo-800 font-medium">
-                              {entry.invoice_line_item!.invoice!.number}
+                            ? <Link to={`/invoices/${entry.invoice!.id}`} className="text-indigo-600 hover:text-indigo-800 font-medium">
+                              {entry.invoice!.number}
                             </Link>
                             : <span className="text-gray-400">Unbilled</span>
                           }

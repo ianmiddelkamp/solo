@@ -4,6 +4,7 @@ class TimeEntry < ApplicationRecord
   belongs_to :charge_code, optional: true
   belongs_to :client, optional: true
   belongs_to :task, optional: true
+  belongs_to :invoice, optional: true
   has_one :invoice_line_item
 
   validates :date, presence: true

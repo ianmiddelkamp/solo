@@ -44,8 +44,8 @@ class InvoicesController < ApplicationController
     client = current_business_profile.clients.find(params[:client_id])
 
     scope = TimeEntry
-      .left_outer_joins(:invoice_line_item, :project)
-      .where(invoice_line_items: { id: nil })
+      .left_outer_joins(:project)
+      .where(invoice_id: nil)
       .where(
         "(time_entries.project_id IS NOT NULL AND projects.client_id = :cid) OR " \
         "(time_entries.charge_code_id IS NOT NULL AND time_entries.client_id = :cid)",
@@ -69,28 +69,34 @@ class InvoicesController < ApplicationController
     client = current_business_profile.clients.find(params[:client_id])
     contact = resolve_contact(client, params[:contact_id])
 
+    generator = InvoiceGenerator.new(
+      client: client,
+      contact: contact,
+      start_date: params[:start_date],
+      end_date: params[:end_date],
+      time_entry_ids: params[:time_entry_ids]
+    )
+
     begin
-      invoice = InvoiceGenerator.new(
-        client: client,
-        contact: contact,
-        start_date: params[:start_date],
-        end_date: params[:end_date],
-        time_entry_ids: params[:time_entry_ids]
-      ).generate!
+      invoice = generator.generate!
     rescue ArgumentError => e
       render json: { error: e.message }, status: :unprocessable_entity
       return
     end
 
     if invoice.nil?
-      render json: { error: "No unbilled time entries found for this client in the selected period." },
-             status: :unprocessable_entity
+      # generator.warnings can be non-empty here too — e.g. the only project with unbilled work
+      # was a capped project that had already exhausted its cap, so there's nothing left to bill.
+      message = generator.warnings.presence&.join(" ") ||
+        "No unbilled time entries found for this client in the selected period."
+      render json: { error: message }, status: :unprocessable_entity
       return
     end
 
     regenerate_invoice_pdf!(invoice)
 
-    render json: invoice_json(invoice), status: :created
+    warnings = generator.warnings + fixed_price_quote_warnings(invoice)
+    render json: invoice_json(invoice).merge(warnings: warnings), status: :created
   end
 
   def update
@@ -197,6 +203,24 @@ class InvoicesController < ApplicationController
     )
   end
 
+  # Informational only — never blocks or alters the invoice. Surfaces when a just-generated
+  # Fixed Price invoice billed a different task breakdown than what the client actually saw in
+  # the project's most recently accepted (or most recent) estimate. See
+  # Project#fixed_price_quote_drift for why the total itself never needs this kind of check.
+  def fixed_price_quote_warnings(invoice)
+    project_ids = invoice.invoice_line_items.where.not(project_id: nil).distinct.pluck(:project_id)
+    Project.where(id: project_ids, billing_mode: "fixed_price").filter_map do |project|
+      drift = project.fixed_price_quote_drift
+      next unless drift
+
+      parts = []
+      parts << "added: #{drift[:added].join(', ')}" if drift[:added].any?
+      parts << "removed: #{drift[:removed].join(', ')}" if drift[:removed].any?
+      parts << "changed: #{drift[:changed].join(', ')}" if drift[:changed].any?
+      "#{project.name} was billed with a different task breakdown than quoted in #{drift[:reference]} (#{parts.join('; ')})"
+    end
+  end
+
   # Defaults to the client's primary contact when none is given; raises RecordNotFound (rendered
   # as a 404 by ApplicationController, matching every other tenant-scoped .find in this app) if a
   # contact_id is given but doesn't belong to this client.
@@ -239,7 +263,16 @@ class InvoicesController < ApplicationController
         client: { include: { contacts: { only: %i[id name email phone phone2 primary] } } },
         contact: { only: %i[id name email phone phone2 primary] },
         invoice_line_items: {
-          include: { time_entry: { include: [:project, :charge_code] } }
+          include: {
+            time_entry: {
+              include: [
+                :project, :charge_code,
+                { task: { only: %i[id title], include: { task_group: { only: %i[id title position] } } } }
+              ]
+            },
+            project: { only: %i[id name show_task_breakdown show_hours] },
+            task: { only: %i[id title], include: { task_group: { only: %i[id title position] } } }
+          }
         }
       }
     )

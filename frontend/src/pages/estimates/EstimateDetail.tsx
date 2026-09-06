@@ -9,6 +9,7 @@ import ActionsMenu, { type ActionMenuItem } from '../../components/ActionsMenu';
 import ScaleToFit from '../../components/ScaleToFit';
 import HelpButton from '../../components/HelpButton';
 import { estimateDetailHelp } from '../../content/helpCopy';
+import { displayAmount, effectiveShowActualHours, visibleRows } from '../../utils/estimateLineItems';
 import type { Estimate, BusinessProfile } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -160,7 +161,7 @@ export default function EstimateDetail() {
     <div className="p-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/estimates')} className="text-sm text-gray-500 hover:text-gray-700">
+          <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700">
             ← Estimates
           </button>
           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[estimate.status]}`}>
@@ -295,17 +296,17 @@ export default function EstimateDetail() {
             </tr>
           </thead>
           <tbody>
-            {estimate.estimate_line_items?.map((item, i) => {
-              const isDisbursement = Boolean(item.disbursement);
-              const done = item.task?.status === 'done';
-              const actualHours = done ? (item.task?.actual_hours ?? 0) : null;
-              const displayAmount = done ? ((actualHours ?? 0) * item.rate) : item.amount;
-              return (
-                <tr key={item.id} style={i % 2 === 1 ? { backgroundColor: '#f9fafb' } : {}}>
+            {(() => {
+              const items = estimate.estimate_line_items || [];
+              const showActualHours = effectiveShowActualHours(estimate.project);
+              const showTaskBreakdown = estimate.project?.show_task_breakdown ?? true;
+              const rows = visibleRows(items, showTaskBreakdown, showActualHours);
+              return rows.map((row, i) => (
+                <tr key={row.id} style={i % 2 === 1 ? { backgroundColor: '#f9fafb' } : {}}>
                   <td className="px-3 py-2 text-sm text-gray-700 border-b border-gray-200">
                     <div className="flex items-center gap-2">
-                      {item.description || '—'}
-                      {done && (
+                      {row.description}
+                      {row.done && (
                         <span className="inline-flex px-1.5 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-700 uppercase tracking-wide">
                           Completed
                         </span>
@@ -313,30 +314,30 @@ export default function EstimateDetail() {
                     </div>
                   </td>
                   <td className="px-3 py-2 text-sm text-right border-b border-gray-200">
-                    {isDisbursement ? (
+                    {row.isDisbursement ? (
                       <span className="text-gray-400">—</span>
-                    ) : done ? (
-                      <span className="text-gray-500">est. {item.hours.toFixed(2)} → <strong className="text-gray-900">{actualHours!.toFixed(2)}</strong></span>
+                    ) : row.substituted ? (
+                      <span className="text-gray-500">est. {row.originalHours.toFixed(2)} → <strong className="text-gray-900">{row.hours.toFixed(2)}</strong></span>
                     ) : (
-                      <span className="text-gray-900">{item.hours.toFixed(2)}</span>
+                      <span className="text-gray-900">{row.hours.toFixed(2)}</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 text-right border-b border-gray-200">
-                    {isDisbursement ? <span className="text-gray-400">—</span> : `$${item.rate.toFixed(2)}`}
+                    {row.rate != null ? `$${row.rate.toFixed(2)}` : <span className="text-gray-400">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-sm font-medium text-gray-900 text-right border-b border-gray-200">${displayAmount.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-sm font-medium text-gray-900 text-right border-b border-gray-200">${row.amount.toFixed(2)}</td>
                 </tr>
-              );
-            })}
+              ));
+            })()}
           </tbody>
         </table>
 
         {(() => {
+          // Totals always reflect every real line item regardless of display grouping — the
+          // consolidated summary row above is render-only, never a re-billing of the estimate.
           const items = estimate.estimate_line_items || [];
-          const itemAmount = (item: typeof items[0]) =>
-            item.task?.status === 'done'
-              ? (item.task?.actual_hours ?? 0) * item.rate
-              : item.amount;
+          const showActualHours = effectiveShowActualHours(estimate.project);
+          const itemAmount = (item: typeof items[0]) => displayAmount(item, showActualHours);
           const subtotal = items.reduce((s, i) => s + itemAmount(i), 0);
           const taxAmount = items.reduce((s, i) => s + itemAmount(i) * parseFloat(i.tax_rate || '0') / 100, 0);
           const taxRate = items.find((i) => parseFloat(i.tax_rate || '0') > 0)?.tax_rate;

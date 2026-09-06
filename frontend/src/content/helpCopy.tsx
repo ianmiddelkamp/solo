@@ -86,6 +86,64 @@ export const projectRateHelp = {
   ),
 };
 
+export const projectBillingHelp = {
+  title: 'Billing Mode & Document Display',
+  content: (
+    <>
+      <p>
+        <strong>Billing Mode</strong> controls how much a project's invoices charge:{' '}
+        <strong>Hourly</strong> bills actual hours worked × rate (today's default, unchanged).{' '}
+        <strong>Fixed Price</strong> bills one agreed total, once — the first invoice generated
+        for the project includes the full amount regardless of hours logged, and generating again
+        won't bill it a second time. <strong>Capped</strong> bills actual hours as usual but never
+        lets the pre-tax subtotal exceed the agreed ceiling; time pushed over the cap is written
+        off (not carried to a future invoice), and once the cap is fully used, that project is
+        skipped rather than producing a $0 line — a client invoice bundles every one of a
+        client's projects together, so an exhausted cap on one project doesn't block billing the
+        others; you'll see a warning naming which project was skipped. The cap only bounds
+        billable work — tax is still calculated on top and can push the client's total above the
+        cap number.
+      </p>
+      <p>
+        For both Fixed Price and Capped, the <strong>Billing Amount is a lifetime total for the
+        whole project</strong>, not per-invoice or per-period — it tracks everything ever billed
+        for this project, across however many separate invoices you generate over time (e.g. one
+        per month). Fixed Price is billed exactly once, ever; a capped project keeps consuming the
+        same ceiling invoice after invoice until it's used up.
+      </p>
+      <p>
+        <strong>Estimates respect the same rules as Invoices for both modes</strong> — a Fixed
+        Price estimate shows the agreed total (not a raw hours × rate quote), and a Capped
+        estimate is written down so it never quotes more than what's actually left of the cap
+        (net of anything already invoiced for the project) — so a client is never quoted more than
+        they could actually be charged.
+      </p>
+      <p>
+        The three checkboxes below are independent of billing mode and apply to both Estimates
+        and Invoices: whether the document lists <strong>each task as its own line</strong> versus
+        one consolidated line per <strong>Task Group</strong>, whether an{' '}
+        <strong>Hours/Rate column</strong> appears at all, and — when hours are shown — whether a
+        task's <strong>actual hours</strong> replace its estimated hours once the task is marked
+        done, or the document keeps showing the original estimate throughout. All three default to
+        today's behavior, so existing projects are unaffected.
+      </p>
+      <p>
+        Task Group titles are already client-facing either way — every task's line is prefixed
+        with its group's title (e.g. "Website Development · Kickoff meeting") even with breakdown
+        on. Turning breakdown off just makes that prefix the <strong>entire</strong> line: one row
+        per group, titled with just the group name, with all its tasks' hours and amounts summed
+        into it.
+      </p>
+      <p>
+        <strong>Fixed Price always uses estimated hours, never actual</strong> — the whole point
+        of Fixed Price is billing the agreed total regardless of how work goes, so "actual hours"
+        doesn't apply to it. This is enforced automatically: the "Show actual hours" checkbox is
+        disabled while Billing Mode is Fixed Price.
+      </p>
+    </>
+  ),
+};
+
 export const disbursementsHelp = {
   title: 'How Disbursements Work',
   content: (
@@ -271,7 +329,12 @@ export const estimateDetailHelp = {
         task shown here is marked <strong>Done</strong>, its row automatically swaps the original
         estimated hours/amount for the <strong>actual</strong> hours logged against that task
         (rate × actual hours), and the <strong>Estimated Total</strong> updates to match — live,
-        from the project's current task statuses and time entries.
+        from the project's current task statuses and time entries. This only happens when the
+        project's "Show actual hours" setting is on (Project → Billing) — turn it off and Done
+        tasks keep showing their original estimate here too. <strong>Fixed Price projects always
+        show the original estimate, regardless of that setting</strong> — Fixed Price bills the
+        agreed total no matter how the work actually goes, so there's no "actual vs. estimated"
+        distinction to show.
       </p>
       <p>
         The <strong>PDF</strong> is different: it's a frozen snapshot from whenever it was last
@@ -363,6 +426,14 @@ export const taskGroupsHelp = {
         "Import tasks from Statement of Work" (SOW Import) uses AI to read an uploaded
         document and automatically creates a full set of groups and tasks from it — review
         what it creates, since it's a starting point, not always exact.
+      </p>
+      <p>
+        Group titles aren't just internal organization — they're already client-facing today:
+        every task's line on an Estimate/Invoice is prefixed with its group's title (e.g. "Website
+        Development · Kickoff meeting"). If this project's "Show task breakdown" setting
+        (Project → Billing) is off, that prefix becomes the <strong>entire</strong> line — one row
+        per group, titled with just the group name, with all its tasks' hours and amounts summed
+        into it. Name groups with the client as the reader in mind either way.
       </p>
     </>
   ),

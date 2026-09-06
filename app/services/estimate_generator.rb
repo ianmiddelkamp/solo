@@ -6,9 +6,9 @@ class EstimateGenerator
   end
 
   def generate!
-    tasks = estimated_tasks
+    tasks = @project.estimated_tasks
     disbursements = @project.disbursements
-    return nil if tasks.empty? && disbursements.empty?
+    return nil if tasks.empty? && disbursements.empty? && !@project.fixed_price?
 
     ActiveRecord::Base.transaction do
       estimate = Estimate.create!(
@@ -17,18 +17,101 @@ class EstimateGenerator
         status: "draft"
       )
 
-      tasks.each do |task|
-        rate = effective_rate
-        hours = task.estimated_hours
-        EstimateLineItem.create!(
-          estimate: estimate,
-          task: task,
-          description: build_description(task),
-          hours: hours,
-          rate: rate,
-          amount: hours * rate,
-          tax_rate: @tax_rate
-        )
+      # A client should never be sent a quote that disagrees with what they'll actually be
+      # billed: a Fixed Price project's estimate shows the agreed total, not a raw hours×rate
+      # sum, via the same true-up adjustment line the invoice side uses.
+      if @project.fixed_price?
+        nominal_total = 0
+        if @project.show_task_breakdown
+          tasks.each do |task|
+            rate  = effective_rate
+            hours = task.estimated_hours
+            amount = hours * rate
+            nominal_total += amount
+            EstimateLineItem.create!(
+              estimate: estimate,
+              task: task,
+              description: build_description(task),
+              hours: hours,
+              rate: rate,
+              amount: amount,
+              tax_rate: @tax_rate
+            )
+          end
+
+          adjustment = @project.billing_amount - nominal_total
+          # Skip the line entirely when the tasks' nominal total already lands exactly on the
+          # fixed price — nothing to true up, so there's nothing useful to show the client.
+          if adjustment.round(2) != 0
+            EstimateLineItem.create!(
+              estimate: estimate,
+              description: "Fixed price adjustment",
+              hours: 0,
+              rate: 0,
+              amount: adjustment,
+              tax_rate: @tax_rate
+            )
+          end
+        else
+          EstimateLineItem.create!(
+            estimate: estimate,
+            description: "#{@project.name} · Fixed price",
+            hours: 0,
+            rate: 0,
+            amount: @project.billing_amount,
+            tax_rate: @tax_rate
+          )
+        end
+      elsif @project.capped?
+        nominal_total = 0
+        tasks.each do |task|
+          rate  = effective_rate
+          hours = task.estimated_hours
+          amount = hours * rate
+          nominal_total += amount
+          EstimateLineItem.create!(
+            estimate: estimate,
+            task: task,
+            description: build_description(task),
+            hours: hours,
+            rate: rate,
+            amount: amount,
+            tax_rate: @tax_rate
+          )
+        end
+
+        # Same ceiling InvoiceGenerator#bill_capped enforces: never quote more than what's
+        # actually left under the project's cap, net of whatever's already been invoiced against
+        # it — not the full cap in isolation, which would overstate what's left for an ongoing
+        # capped project. Never goes below $0 room, so a fully-consumed cap quotes $0 more,
+        # rather than a nonsensical negative total.
+        already = InvoiceLineItem.where(project: @project).sum(:amount)
+        room = [@project.billing_amount - already, 0].max
+        overage = nominal_total - room
+        if overage.round(2) > 0
+          EstimateLineItem.create!(
+            estimate: estimate,
+            description: "Billing cap adjustment",
+            hours: 0,
+            rate: 0,
+            amount: -overage,
+            tax_rate: @tax_rate
+          )
+        end
+      else
+        tasks.each do |task|
+          rate = effective_rate
+          hours = task.estimated_hours
+          EstimateLineItem.create!(
+            estimate: estimate,
+            task: task,
+            description: build_description(task),
+            hours: hours,
+            rate: rate,
+            amount: hours * rate,
+            tax_rate: @tax_rate
+          )
+        end
       end
 
       # Every disbursement on the project is included on every generated estimate, paid or
@@ -59,14 +142,6 @@ class EstimateGenerator
   end
 
   private
-
-  def estimated_tasks
-    @project.task_groups
-            .order(:position)
-            .includes(:tasks)
-            .flat_map { |g| g.tasks.order(:position) }
-            .select { |t| t.estimated_hours.present? && t.estimated_hours > 0 }
-  end
 
   def build_description(task)
     group_title = task.task_group.title

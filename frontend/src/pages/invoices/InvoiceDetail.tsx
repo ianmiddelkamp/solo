@@ -12,6 +12,7 @@ import ActionsMenu, { type ActionMenuItem } from '../../components/ActionsMenu';
 import ScaleToFit from '../../components/ScaleToFit';
 import HelpButton from '../../components/HelpButton';
 import { invoiceContactsHelp } from '../../content/helpCopy';
+import { visibleInvoiceRows } from '../../utils/invoiceLineItems';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -173,6 +174,7 @@ export default function InvoiceDetail() {
 
   const paymentTerms = invoice.client?.sales_terms || business?.default_payment_terms || 'NET 15';
   const footer = business?.invoice_footer || 'Thank you for your business.';
+  const invoiceRows = visibleInvoiceRows(invoice.invoice_line_items || []);
 
   // Same actions, same conditions as the button row below — this is what collapses into a
   // single menu on narrower screens instead of an overflowing row of up to 6 buttons.
@@ -190,7 +192,7 @@ export default function InvoiceDetail() {
     <div className="p-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/invoices')} className="text-sm text-gray-500 hover:text-gray-700">
+          <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700">
             ← Invoices
           </button>
           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[invoice.status]}`}>
@@ -347,22 +349,30 @@ export default function InvoiceDetail() {
               <th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wide">Date</th>
               <th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wide">Project</th>
               <th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wide">Description</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Hours</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Rate</th>
+              {invoiceRows.showHours && <>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Hours</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Rate</th>
+              </>}
               <th className="px-3 py-2 text-right text-xs font-semibold text-white uppercase tracking-wide">Amount</th>
             </tr>
           </thead>
           <tbody>
-            {invoice.invoice_line_items?.map((item, i) => (
-              <tr key={item.id} style={i % 2 === 1 ? { backgroundColor: '#f9fafb' } : {}}>
-                <td className="px-3 py-2 text-sm text-gray-600 border-b border-gray-200">{formatDate(item.time_entry?.date)}</td>
+            {invoiceRows.rows.map((row, i) => (
+              <tr key={row.id} style={i % 2 === 1 ? { backgroundColor: '#f9fafb' } : {}}>
                 <td className="px-3 py-2 text-sm text-gray-600 border-b border-gray-200">
-                  {item.time_entry?.project?.name || item.time_entry?.charge_code?.code || '—'}
+                  {row.date ? formatDate(row.date) : '—'}
                 </td>
-                <td className="px-3 py-2 text-sm text-gray-600 border-b border-gray-200">{item.description || '—'}</td>
-                <td className="px-3 py-2 text-sm text-gray-900 text-right border-b border-gray-200">{item.hours.toFixed(2)}</td>
-                <td className="px-3 py-2 text-sm text-gray-900 text-right border-b border-gray-200">${item.rate.toFixed(2)}</td>
-                <td className="px-3 py-2 text-sm font-medium text-gray-900 text-right border-b border-gray-200">${item.amount.toFixed(2)}</td>
+                <td className="px-3 py-2 text-sm text-gray-600 border-b border-gray-200">{row.projectName}</td>
+                <td className="px-3 py-2 text-sm text-gray-600 border-b border-gray-200">{row.description}</td>
+                {invoiceRows.showHours && <>
+                  <td className="px-3 py-2 text-sm text-gray-900 text-right border-b border-gray-200">
+                    {row.hours != null ? row.hours.toFixed(2) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 text-right border-b border-gray-200">
+                    {row.rate != null ? `$${row.rate.toFixed(2)}` : '—'}
+                  </td>
+                </>}
+                <td className="px-3 py-2 text-sm font-medium text-gray-900 text-right border-b border-gray-200">${row.amount.toFixed(2)}</td>
               </tr>
             ))}
           </tbody>

@@ -8,30 +8,7 @@
       logo_data_uri: @logo_data_uri,
       subtitle: @invoice.start_date ? "Period: #{@invoice.start_date.strftime('%d %b %Y')} – #{@invoice.end_date.strftime('%d %b %Y')}" : nil %>
 
-<table>
-  <thead>
-    <tr>
-      <th>Date</th>
-      <th>Project</th>
-      <th>Description</th>
-      <th class="right">Hours</th>
-      <th class="right">Rate</th>
-      <th class="right">Amount</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @items.each do |item| %>
-      <tr>
-        <td><%= item.time_entry.date.strftime("%d %b %Y") %></td>
-        <td><%= item.time_entry.project&.name || item.time_entry.charge_code&.code %></td>
-        <td><%= item.description.presence || "—" %></td>
-        <td class="right"><%= "%.2f" % item.hours %></td>
-        <td class="right">$<%= "%.2f" % item.rate %></td>
-        <td class="right">$<%= "%.2f" % item.amount %></td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
+<%= render "pdfs/line_items_table", items: @items, document_type: :invoice, project: nil %>
 
 <% subtotal   = @items.sum(&:amount)
    tax_amount = @items.sum { |i| i.amount * i.tax_rate / 100 }
