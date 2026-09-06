@@ -34,7 +34,7 @@ export default function ExportMenu({ options, label = 'Export', disabled }: Expo
         {disabled ? 'Generating…' : `${label} ▾`}
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+        <div className="absolute left-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
           {options.map((opt) => (
             <button
               key={opt.label}
