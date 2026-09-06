@@ -14,6 +14,7 @@ export interface Contact {
   phone2?: string | null;
   primary: boolean;
   roles?: Role[];
+  is_archived?: boolean;
 }
 
 export interface Client {

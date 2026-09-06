@@ -5,12 +5,16 @@ interface Props {
   actionLabel?: string;
   actionTo?: string;
   action?: { label: string; onClick: () => void };
+  help?: React.ReactNode;
 }
 
-export default function PageHeader({ title, actionLabel, actionTo, action }: Props) {
+export default function PageHeader({ title, actionLabel, actionTo, action, help }: Props) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-      <h2 className="text-2xl font-semibold text-gray-800">{title}</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-2xl font-semibold text-gray-800">{title}</h2>
+        {help}
+      </div>
       {actionLabel && actionTo && (
         <Link
           to={actionTo}

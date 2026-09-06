@@ -3,6 +3,8 @@ import { getProjects } from '../../api/projects';
 import { useTimer } from '../../context/TimerContext';
 import { formatElapsed } from '../../utils/dates';
 import TaskBoard from '../../components/TaskBoard';
+import HelpButton from '../../components/HelpButton';
+import { timerPageHelp } from '../../content/helpCopy';
 import { confirm, listSelection } from '../../services/dialog';
 import type { Project } from '../../types';
 
@@ -114,9 +116,12 @@ export default function TimerPage() {
 
           <div className="space-y-6">
             <div className="text-center">
-              <p className="text-4xl sm:text-6xl font-mono font-semibold text-gray-800 tracking-widest">
-                {formatElapsed(elapsed)}
-              </p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-4xl sm:text-6xl font-mono font-semibold text-gray-800 tracking-widest">
+                  {formatElapsed(elapsed)}
+                </p>
+                <HelpButton title={timerPageHelp.title}>{timerPageHelp.content}</HelpButton>
+              </div>
               {session && (
                 <p className="mt-2 text-sm text-gray-500">
                   {session.project?.name}{session.project?.client ? ` — ${session.project.client.name}` : ''}

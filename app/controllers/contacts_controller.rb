@@ -1,9 +1,11 @@
 class ContactsController < ApplicationController
   before_action :set_client
-  before_action :set_contact, only: [:update, :destroy]
+  before_action :set_contact, only: [:update, :archive]
 
   def index
-    render json: @client.contacts.includes(:roles).order(primary: :desc, name: :asc).map { |c| contact_json(c) }
+    contacts = @client.contacts.includes(:roles).order(primary: :desc, name: :asc)
+    contacts = contacts.where(is_archived: false) unless params[:show_archived].present?
+    render json: contacts.map { |c| contact_json(c) }
   end
 
   def create
@@ -27,19 +29,29 @@ class ContactsController < ApplicationController
     end
   end
 
-  def destroy
-    if @client.contacts.count <= 1
-      render json: { error: "A client must have at least one contact." }, status: :unprocessable_entity
+  # PATCH /clients/:client_id/contacts/:id/archive
+  # body: { contact: { is_archived: true|false } }
+  #
+  # Archiving replaced hard-deletion entirely: a Contact can be referenced by Invoices/Estimates
+  # (contact_id, both NOT NULL with a DB foreign key), so destroying one that's ever been used on
+  # a document raised a raw FK violation. Archiving has no such constraint — the contact and every
+  # document that points to it stay intact, it just drops out of the active list and picker.
+  def archive
+    if archive_params[:is_archived] && @client.contacts.where(is_archived: false).count <= 1
+      render json: { error: "A client must have at least one active contact." }, status: :unprocessable_entity
       return
     end
-    if @contact.primary?
-      render json: { error: "Can't delete the primary contact — make another contact primary first." },
+    if archive_params[:is_archived] && @contact.primary?
+      render json: { error: "Can't archive the primary contact — make another contact primary first." },
              status: :unprocessable_entity
       return
     end
 
-    @contact.destroy
-    head :no_content
+    if @contact.update(archive_params)
+      render json: contact_json(@contact)
+    else
+      render json: { errors: @contact.errors.full_messages }, status: :unprocessable_entity
+    end
   end
 
   private
@@ -54,6 +66,10 @@ class ContactsController < ApplicationController
 
   def contact_params
     params.require(:contact).permit(:name, :email, :phone, :phone2, :primary)
+  end
+
+  def archive_params
+    params.require(:contact).permit(:is_archived)
   end
 
   # Roles are freeform tags scoped to the client — sent as plain name strings, not IDs, so the
@@ -71,7 +87,7 @@ class ContactsController < ApplicationController
 
   def contact_json(contact)
     contact.as_json(
-      only: %i[id client_id name email phone phone2 primary],
+      only: %i[id client_id name email phone phone2 primary is_archived],
       include: { roles: { only: %i[id name] } }
     )
   end

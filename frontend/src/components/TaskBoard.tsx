@@ -31,6 +31,8 @@ import {
 import { confirm } from '../services/dialog';
 import SowImport from './SowImport';
 import ExportMenu from './ExportMenu';
+import HelpButton from './HelpButton';
+import { taskGroupsHelp } from '../content/helpCopy';
 import { downloadExport } from '../utils/export';
 import { useFeatures } from '../context/FeaturesContext';
 import type { Task, TaskGroup } from '../types';
@@ -656,7 +658,10 @@ export default function TaskBoard({ projectId, selectedTaskId, onSelectTask, tas
   return (
     <div className="w-full max-w-3xl">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">Task Groups</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-800">Task Groups</h3>
+          <HelpButton title={taskGroupsHelp.title}>{taskGroupsHelp.content}</HelpButton>
+        </div>
         <ExportMenu options={exportOptions} />
       </div>
 

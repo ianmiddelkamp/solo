@@ -65,33 +65,83 @@ class ContactsControllerTest < ActionDispatch::IntegrationTest
     assert_not @primary.reload.primary?
   end
 
-  test "destroy is blocked when it's the client's only contact" do
-    delete "/clients/#{@client.id}/contacts/#{@primary.id}", headers: auth_headers(users(:admin))
-    assert_response :unprocessable_entity
-    assert @client.contacts.exists?(@primary.id)
+  test "index excludes archived contacts by default and includes them with show_archived" do
+    second = @client.contacts.create!(name: "Second", is_archived: true)
+
+    get "/clients/#{@client.id}/contacts", headers: auth_headers(users(:admin))
+    ids = JSON.parse(response.body).map { |c| c["id"] }
+    assert_includes ids, @primary.id
+    refute_includes ids, second.id
+
+    get "/clients/#{@client.id}/contacts", params: { show_archived: "true" }, headers: auth_headers(users(:admin))
+    ids = JSON.parse(response.body).map { |c| c["id"] }
+    assert_includes ids, @primary.id
+    assert_includes ids, second.id
   end
 
-  test "destroy is blocked for the primary contact even when others exist" do
+  test "archive is blocked when it's the client's only active contact" do
+    patch "/clients/#{@client.id}/contacts/#{@primary.id}/archive",
+      params: { contact: { is_archived: true } }.to_json,
+      headers: auth_headers(users(:admin)).merge("Content-Type" => "application/json")
+    assert_response :unprocessable_entity
+    assert_not @primary.reload.is_archived
+  end
+
+  test "archive is blocked for the primary contact even when others exist" do
     @client.contacts.create!(name: "Second")
 
-    delete "/clients/#{@client.id}/contacts/#{@primary.id}", headers: auth_headers(users(:admin))
+    patch "/clients/#{@client.id}/contacts/#{@primary.id}/archive",
+      params: { contact: { is_archived: true } }.to_json,
+      headers: auth_headers(users(:admin)).merge("Content-Type" => "application/json")
     assert_response :unprocessable_entity
-    assert @client.contacts.exists?(@primary.id)
+    assert_not @primary.reload.is_archived
   end
 
-  test "destroy succeeds for a non-primary contact when another contact remains" do
+  test "archive succeeds for a non-primary contact when another contact remains" do
     second = @client.contacts.create!(name: "Second")
 
-    delete "/clients/#{@client.id}/contacts/#{second.id}", headers: auth_headers(users(:admin))
-    assert_response :no_content
-    assert_not @client.contacts.exists?(second.id)
+    patch "/clients/#{@client.id}/contacts/#{second.id}/archive",
+      params: { contact: { is_archived: true } }.to_json,
+      headers: auth_headers(users(:admin)).merge("Content-Type" => "application/json")
+    assert_response :success
+    assert second.reload.is_archived
   end
 
-  test "can delete a former primary after making another contact primary first" do
+  test "can archive a former primary after making another contact primary first" do
     second = @client.contacts.create!(name: "Second")
     second.update!(primary: true)
 
+    patch "/clients/#{@client.id}/contacts/#{@primary.id}/archive",
+      params: { contact: { is_archived: true } }.to_json,
+      headers: auth_headers(users(:admin)).merge("Content-Type" => "application/json")
+    assert_response :success
+  end
+
+  test "un-archiving a contact does not require another active contact to exist" do
+    second = @client.contacts.create!(name: "Second", is_archived: true)
+
+    patch "/clients/#{@client.id}/contacts/#{second.id}/archive",
+      params: { contact: { is_archived: false } }.to_json,
+      headers: auth_headers(users(:admin)).merge("Content-Type" => "application/json")
+    assert_response :success
+    assert_not second.reload.is_archived
+  end
+
+  test "archiving a contact used on an invoice does not raise a foreign key error" do
+    second = @client.contacts.create!(name: "Second")
+    project = @client.projects.create!(name: "Project")
+    TimeEntry.create!(user: users(:admin), project: project, date: Date.current, hours: 1)
+    InvoiceGenerator.new(client: @client, contact: second).generate!
+
+    patch "/clients/#{@client.id}/contacts/#{second.id}/archive",
+      params: { contact: { is_archived: true } }.to_json,
+      headers: auth_headers(users(:admin)).merge("Content-Type" => "application/json")
+    assert_response :success
+    assert second.reload.is_archived
+  end
+
+  test "delete route no longer exists for contacts" do
     delete "/clients/#{@client.id}/contacts/#{@primary.id}", headers: auth_headers(users(:admin))
-    assert_response :no_content
+    assert_response :not_found
   end
 end

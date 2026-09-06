@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
+import HelpButton from '../../components/HelpButton';
+import { hstReturnsListHelp } from '../../content/helpCopy';
 import ResponsiveTable, { type TableColumn } from '../../components/ResponsiveTable';
 import { getHstReturns, deleteHstReturn } from '../../api/hstReturns';
 import { confirm } from '../../services/dialog';
@@ -59,7 +61,11 @@ export default function HstReturnsList() {
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl">
-      <PageHeader title="HST Returns" action={{ label: 'New Return', onClick: () => setShowNew(true) }} />
+      <PageHeader
+        title="HST Returns"
+        action={{ label: 'New Return', onClick: () => setShowNew(true) }}
+        help={<HelpButton title={hstReturnsListHelp.title}>{hstReturnsListHelp.content}</HelpButton>}
+      />
 
       {showNew && (
         <NewHstReturnDialog

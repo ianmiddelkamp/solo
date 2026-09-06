@@ -10,6 +10,8 @@ import {
 } from '../../api/timeEntries';
 import { getTaskGroups } from '../../api/tasks';
 import PageHeader from '../../components/PageHeader';
+import HelpButton from '../../components/HelpButton';
+import { timesheetFormHelp } from '../../content/helpCopy';
 import { today, hoursFromRange } from '../../utils/dates';
 import { DateTime } from 'luxon';
 import type { Project, Client, ChargeCode, TaskGroup } from '../../types';
@@ -176,7 +178,10 @@ export default function TimesheetForm() {
 
   return (
     <div className="p-8 max-w-lg">
-      <PageHeader title={isEdit ? 'Edit Time Entry' : 'Log Time'} />
+      <PageHeader
+        title={isEdit ? 'Edit Time Entry' : 'Log Time'}
+        help={<HelpButton title={timesheetFormHelp.title}>{timesheetFormHelp.content}</HelpButton>}
+      />
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>

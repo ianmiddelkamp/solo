@@ -48,7 +48,7 @@ export default function ProjectEstimates({ projectId }: { projectId: number }) {
     <div className="max-w-3xl">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Estimates</h3>
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-        <div className="rounded-lg overflow-hidden border border-gray-200 mb-6">
+        <div className="rounded-lg overflow-x-auto border border-gray-200 mb-6">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
+import HelpButton from '../../components/HelpButton';
+import { homeOfficeHelp } from '../../content/helpCopy';
 import { getHomeOfficeProfile, updateHomeOfficeProfile } from '../../api/homeOffice';
 import type { HomeOfficeProfile } from '../../types';
 
@@ -90,7 +92,10 @@ export default function HomeOfficePage() {
 
   return (
     <div className="p-8 max-w-2xl">
-      <PageHeader title="Home Office" />
+      <PageHeader
+        title="Home Office"
+        help={<HelpButton title={homeOfficeHelp.title}>{homeOfficeHelp.content}</HelpButton>}
+      />
       <p className="text-sm text-gray-500 mb-6">
         Calculate your deductible home office expense for T2125 Part 7. CRA allows either a room-count or square-footage method.
       </p>
