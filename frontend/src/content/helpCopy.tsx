@@ -160,6 +160,33 @@ export const timesheetFormHelp = {
   ),
 };
 
+export const invoiceContactsHelp = {
+  title: '"Bill To" vs. "Send To"',
+  content: (
+    <>
+      <p>
+        <strong>Bill To</strong> is the contact permanently recorded on this invoice — it's who's
+        printed on the document itself. Changing it here is a real, saved change: if a PDF has
+        already been generated, it's automatically regenerated so the document matches the new
+        Bill To contact.
+      </p>
+      <p>
+        <strong>Send To</strong> (the picker you get when clicking Send Invoice / Send Receipt, if
+        the client has more than one contact) is a <strong>one-time override</strong> for that
+        single email only. It does <strong>not</strong> change the invoice's stored Bill To, and it
+        does <strong>not</strong> regenerate the PDF — the attached document still shows the
+        original Bill To contact's name and address, even if you send the email to someone else.
+        Use it for things like cc'ing a bookkeeper a one-off copy without altering the invoice
+        record.
+      </p>
+      <p>
+        If the client only has one contact, there's nothing to choose — sending just asks you to
+        confirm sending to that person directly.
+      </p>
+    </>
+  ),
+};
+
 export const ccaScheduleHelp = {
   title: 'How CCA Works',
   content: (
@@ -240,12 +267,18 @@ export const estimateDetailHelp = {
   content: (
     <>
       <p>
-        This page isn't a static document — it recalculates every time you open it. Once a task
-        shown here is marked <strong>Done</strong>, its row automatically swaps the original
+        The numbers on <strong>this web page</strong> recalculate every time you open it. Once a
+        task shown here is marked <strong>Done</strong>, its row automatically swaps the original
         estimated hours/amount for the <strong>actual</strong> hours logged against that task
-        (rate × actual hours), and the <strong>Estimated Total</strong> updates to match. That
-        happens live from the project's current task statuses and time entries — nothing here is
-        re-saved, so this total can now differ from the PDF you already sent.
+        (rate × actual hours), and the <strong>Estimated Total</strong> updates to match — live,
+        from the project's current task statuses and time entries.
+      </p>
+      <p>
+        The <strong>PDF</strong> is different: it's a frozen snapshot from whenever it was last
+        generated or regenerated, and does <strong>not</strong> pick up these live changes on its
+        own — even if it's never been sent. If the numbers on this page have moved since the PDF
+        was made, click <strong>Regenerate PDF</strong> to bring the document in line with them
+        before sending it.
       </p>
       <p>
         The amber <strong>"Changes since last sent"</strong> box compares this estimate's current
@@ -304,7 +337,7 @@ export const timerPageHelp = {
       </ul>
       <p>
         If no timer is running yet, selecting a task just stages it to start with next (or starts
-        one immediately, after a quick confirmation).
+        one immediately, after a quick confirmation). If you forget to run the timer you can always log time on the timesheets page.
       </p>
     </>
   ),

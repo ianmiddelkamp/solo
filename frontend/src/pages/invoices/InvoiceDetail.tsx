@@ -10,6 +10,8 @@ import PaymentDialog from './dialogs/PaymentDialog';
 import ContactPickerDialog from '../../components/ContactPickerDialog';
 import ActionsMenu, { type ActionMenuItem } from '../../components/ActionsMenu';
 import ScaleToFit from '../../components/ScaleToFit';
+import HelpButton from '../../components/HelpButton';
+import { invoiceContactsHelp } from '../../content/helpCopy';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -300,7 +302,10 @@ export default function InvoiceDetail() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Bill To</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+              Bill To
+              <HelpButton title={invoiceContactsHelp.title}>{invoiceContactsHelp.content}</HelpButton>
+            </p>
             <p className="text-sm font-semibold text-gray-900">{invoice.client?.name}</p>
             <div className="text-xs text-gray-500 leading-relaxed mt-1">
               {editingContact ? (
