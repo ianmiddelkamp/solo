@@ -85,7 +85,11 @@ Rails.application.routes.draw do
       patch :archive
     end
     resource :rate, only: [:show, :update]
-    resources :contacts, only: [:index, :create, :update, :destroy]
+    resources :contacts, only: [:index, :create, :update] do
+      member do
+        patch :archive
+      end
+    end
   end
   resources :projects do
     member do

@@ -40,6 +40,15 @@ module MarkdownToDocx
   XML
 
   def convert(markdown)
+    # rubyzip defaults to writing Zip64 extension headers even for tiny archives (Zip.
+    # write_zip64_support), which real Word's zip reader can reject as "corrupted" even though
+    # more lenient readers (including the docx gem, used to test this file) open it fine — a
+    # handful-of-KB docx never needs Zip64, so disable it for this write only, then restore
+    # whatever the app-wide setting was (other rubyzip users, e.g. caxlsx's xlsx export,
+    # shouldn't be affected by this).
+    previous_zip64_support = Zip.write_zip64_support
+    Zip.write_zip64_support = false
+
     buffer = Zip::OutputStream.write_buffer do |zip|
       zip.put_next_entry("[Content_Types].xml")
       zip.write(CONTENT_TYPES)
@@ -53,6 +62,8 @@ module MarkdownToDocx
       zip.write(document_xml(markdown.to_s))
     end
     buffer.string
+  ensure
+    Zip.write_zip64_support = previous_zip64_support
   end
 
   def document_xml(markdown)

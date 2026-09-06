@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { getContacts, createContact, updateContact, deleteContact } from '../api/contacts';
+import { useEffect, useState, useCallback } from 'react';
+import { getContacts, createContact, updateContact, archiveContact } from '../api/contacts';
 import { confirm } from '../services/dialog';
 import type { Contact } from '../types';
 
@@ -14,11 +14,18 @@ export default function ClientContacts({ clientId }: { clientId: number }) {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [editingRolesId, setEditingRolesId] = useState<number | null>(null);
   const [rolesInput, setRolesInput] = useState('');
+  const [editingContactId, setEditingContactId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState(EMPTY);
+  const [showArchived, setShowArchived] = useState(false);
 
-  useEffect(() => {
+  const loadContacts = useCallback(() => {
     if (!clientId) return;
-    getContacts(clientId).then((data) => { if (data) setContacts(data); }).catch((e) => setError(e.message));
-  }, [clientId]);
+    const params: Record<string, string> = {};
+    if (showArchived) params.show_archived = 'true';
+    getContacts(clientId, params).then((data) => { if (data) setContacts(data); }).catch((e) => setError(e.message));
+  }, [clientId, showArchived]);
+
+  useEffect(() => { loadContacts(); }, [loadContacts]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +56,32 @@ export default function ClientContacts({ clientId }: { clientId: number }) {
     }
   }
 
+  function startEditingContact(contact: Contact) {
+    setEditingContactId(contact.id);
+    setEditForm({
+      name: contact.name,
+      email: contact.email ?? '',
+      phone: contact.phone ?? '',
+      phone2: contact.phone2 ?? '',
+    });
+  }
+
+  async function saveEditingContact(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingContactId) return;
+    setBusyId(editingContactId);
+    setError(null);
+    try {
+      const updated = await updateContact(clientId, editingContactId, editForm);
+      if (updated) setContacts((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setEditingContactId(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function startEditingRoles(contact: Contact) {
     setEditingRolesId(contact.id);
     setRolesInput((contact.roles ?? []).map((r) => r.name).join(', '));
@@ -69,32 +102,54 @@ export default function ClientContacts({ clientId }: { clientId: number }) {
     }
   }
 
-  async function handleDelete(contact: Contact) {
-    if (!await confirm(`Delete "${contact.name}"?`)) return;
+  async function handleArchiveToggle(contact: Contact) {
+    const archiving = !contact.is_archived;
+    if (archiving && !await confirm(`Archive "${contact.name}"?`)) return;
+    setBusyId(contact.id);
     setError(null);
     try {
-      await deleteContact(clientId, contact.id);
-      setContacts((prev) => prev.filter((c) => c.id !== contact.id));
+      const updated = await archiveContact(clientId, contact.id, archiving);
+      if (updated) {
+        // Archiving drops the contact out of the active-only view immediately; un-archiving
+        // just flips it in place since we're already looking at the archived list.
+        setContacts((prev) => archiving && !showArchived
+          ? prev.filter((c) => c.id !== contact.id)
+          : prev.map((c) => (c.id === updated.id ? updated : c)));
+      }
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusyId(null);
     }
   }
 
-  const canDelete = (contact: Contact) => !contact.primary && contacts.length > 1;
+  const activeCount = contacts.filter((c) => !c.is_archived).length;
+  const canArchive = (contact: Contact) => !contact.primary && activeCount > 1;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Contacts</h3>
-        {!adding && (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-          >
-            + Add Contact
-          </button>
-        )}
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Show archived
+          </label>
+          {!adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              + Add Contact
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -161,12 +216,73 @@ export default function ClientContacts({ clientId }: { clientId: number }) {
       {contacts.length > 0 && (
         <ul className="divide-y divide-gray-100 bg-white rounded-lg border border-gray-200 shadow-sm">
           {contacts.map((c) => (
-            <li key={c.id} className="flex items-center gap-3 px-4 py-3">
+            <li key={c.id} className="px-4 py-3">
+            {editingContactId === c.id ? (
+              <form onSubmit={saveEditingContact} className="flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[140px]">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Name *</label>
+                  <input
+                    autoFocus
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex-1 min-w-[140px]">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Phone 2</label>
+                  <input
+                    type="tel"
+                    value={editForm.phone2}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, phone2: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={busyId === c.id}
+                    className="px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {busyId === c.id ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingContactId(null)}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className={`flex items-center gap-3 ${c.is_archived ? 'opacity-50' : ''}`}>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate flex items-center gap-2">
                   {c.name}
                   {c.primary && (
                     <span className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-indigo-100 text-indigo-700">Primary</span>
+                  )}
+                  {c.is_archived && (
+                    <span className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-500">Archived</span>
                   )}
                 </p>
                 <p className="text-xs text-gray-400">
@@ -205,6 +321,13 @@ export default function ClientContacts({ clientId }: { clientId: number }) {
                   </button>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={() => startEditingContact(c)}
+                className="text-xs text-gray-500 hover:text-indigo-600 font-medium flex-shrink-0"
+              >
+                Edit
+              </button>
               {!c.primary && (
                 <button
                   type="button"
@@ -217,19 +340,21 @@ export default function ClientContacts({ clientId }: { clientId: number }) {
               )}
               <button
                 type="button"
-                onClick={() => handleDelete(c)}
-                disabled={!canDelete(c)}
+                onClick={() => handleArchiveToggle(c)}
+                disabled={busyId === c.id || (!c.is_archived && !canArchive(c))}
                 title={
-                  c.primary
-                    ? "Can't delete the primary contact — make another contact primary first"
-                    : !canDelete(c)
-                    ? 'A client must have at least one contact'
+                  !c.is_archived && c.primary
+                    ? "Can't archive the primary contact — make another contact primary first"
+                    : !c.is_archived && !canArchive(c)
+                    ? 'A client must have at least one active contact'
                     : undefined
                 }
                 className="text-red-400 hover:text-red-600 text-xs flex-shrink-0 disabled:opacity-30 disabled:hover:text-red-400 disabled:cursor-not-allowed"
               >
-                ✕
+                {c.is_archived ? 'Un-archive' : 'Archive'}
               </button>
+              </div>
+            )}
             </li>
           ))}
         </ul>
