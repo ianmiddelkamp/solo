@@ -7,6 +7,8 @@ import { confirm } from '../../services/dialog';
 import ContactPickerDialog from '../../components/ContactPickerDialog';
 import ActionsMenu, { type ActionMenuItem } from '../../components/ActionsMenu';
 import ScaleToFit from '../../components/ScaleToFit';
+import HelpButton from '../../components/HelpButton';
+import { estimateDetailHelp } from '../../content/helpCopy';
 import type { Estimate, BusinessProfile } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -164,6 +166,7 @@ export default function EstimateDetail() {
           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[estimate.status]}`}>
             {estimate.status}
           </span>
+          <HelpButton title={estimateDetailHelp.title}>{estimateDetailHelp.content}</HelpButton>
         </div>
         <div className="md:hidden">
           <ActionsMenu items={actionItems} />

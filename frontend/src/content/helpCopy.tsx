@@ -235,6 +235,43 @@ export const t2125ReportHelp = {
   ),
 };
 
+export const estimateDetailHelp = {
+  title: 'Live Updates & Changes',
+  content: (
+    <>
+      <p>
+        This page isn't a static document — it recalculates every time you open it. Once a task
+        shown here is marked <strong>Done</strong>, its row automatically swaps the original
+        estimated hours/amount for the <strong>actual</strong> hours logged against that task
+        (rate × actual hours), and the <strong>Estimated Total</strong> updates to match. That
+        happens live from the project's current task statuses and time entries — nothing here is
+        re-saved, so this total can now differ from the PDF you already sent.
+      </p>
+      <p>
+        The amber <strong>"Changes since last sent"</strong> box compares this estimate's current
+        line items against a snapshot taken the last time you clicked <strong>Send Estimate</strong>.
+        It only appears once an estimate has been sent at least once, and only when something has
+        actually changed:
+      </p>
+      <ul className="list-disc pl-5 space-y-1">
+        <li><strong>Added / Removed:</strong> a task or disbursement joined or dropped off the project's estimate.</li>
+        <li><strong>Revised:</strong> a task's estimated hours changed.</li>
+        <li><strong>Completed:</strong> a task was marked Done and its actual hours differ from what was last sent.</li>
+      </ul>
+      <p>
+        It's there to help you know what to call out when you re-send an updated estimate — it's
+        informational, not something you edit directly.
+      </p>
+      <p>
+        One more thing: clicking <strong>Create Estimate</strong> / <strong>Update Estimate</strong>{' '}
+        on the project page always creates a brand-new estimate snapshot of the project's current
+        billable tasks and disbursements, rather than editing an existing one in place — that's
+        why a project can end up with more than one estimate listed.
+      </p>
+    </>
+  ),
+};
+
 export const taskGroupsHelp = {
   title: 'How Task Groups Work',
   content: (
