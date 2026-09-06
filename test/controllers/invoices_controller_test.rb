@@ -118,14 +118,38 @@ class InvoicesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  test "create returns 422 with a clear message when a capped project's cap is already exhausted" do
+  test "create skips just the exhausted capped project and warns, billing the rest of the client normally" do
     capped_project = @client.projects.create!(name: "Capped", billing_mode: "capped", billing_amount: 100)
     capped_project.rates.create!(rate: 100)
     capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+    # This first generate! also consumes @project's stray entry from setup, so it's billed and
+    # gone before the real test invoice — a fresh entry is needed after exhausting the cap.
     InvoiceGenerator.new(client: @client, contact: @primary).generate!
     capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+    @project.rates.create!(rate: 50)
+    TimeEntry.create!(user: users(:admin), project: @project, date: Date.current, hours: 2)
 
-    post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    stub_pdf_rendering do
+      post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    end
+
+    assert_response :created
+    body = JSON.parse(response.body)
+    assert_equal 100, body["total"] # just @project's 2h * $50 — capped skipped
+    assert_equal 1, body["warnings"].size
+    assert_includes body["warnings"].first, "billing cap"
+  end
+
+  test "create returns 422 with a clear message when a capped project's exhausted cap is the only unbilled work" do
+    client = @bp.clients.create!(name: "Capped-Only Client")
+    contact = client.contacts.create!(name: "Primary", primary: true)
+    capped_project = client.projects.create!(name: "Capped", billing_mode: "capped", billing_amount: 100)
+    capped_project.rates.create!(rate: 100)
+    capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+    InvoiceGenerator.new(client: client, contact: contact).generate!
+    capped_project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+
+    post "/invoices", params: { client_id: client.id }, headers: auth_headers(users(:admin))
 
     assert_response :unprocessable_entity
     body = JSON.parse(response.body)
@@ -139,7 +163,9 @@ class InvoicesControllerTest < ActionDispatch::IntegrationTest
     EstimateGenerator.new(project: project, contact: @primary).generate!
     task.update!(estimated_hours: 20)
 
-    post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    stub_pdf_rendering do
+      post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    end
     assert_response :created
 
     body = JSON.parse(response.body)
@@ -153,7 +179,9 @@ class InvoicesControllerTest < ActionDispatch::IntegrationTest
     project.task_groups.create!(title: "Phase 1").tasks.create!(title: "Design", status: "todo", estimated_hours: 10)
     EstimateGenerator.new(project: project, contact: @primary).generate!
 
-    post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    stub_pdf_rendering do
+      post "/invoices", params: { client_id: @client.id }, headers: auth_headers(users(:admin))
+    end
     assert_response :created
 
     body = JSON.parse(response.body)

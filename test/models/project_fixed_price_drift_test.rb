@@ -55,7 +55,7 @@ class ProjectFixedPriceDriftTest < ActiveSupport::TestCase
     group.tasks.create!(title: "Build", status: "todo", estimated_hours: 15)
 
     drift = project.fixed_price_quote_drift
-    assert_equal ["Build"], drift[:added]
+    assert_equal ["Phase 1 · Build"], drift[:added]
   end
 
   test "detects a task removed (its estimate cleared) after the quote" do
@@ -88,5 +88,4 @@ class ProjectFixedPriceDriftTest < ActiveSupport::TestCase
     drift = project.fixed_price_quote_drift
     assert_equal accepted.number, drift[:reference]
   end
-
 end

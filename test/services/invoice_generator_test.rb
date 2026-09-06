@@ -162,7 +162,7 @@ class InvoiceGeneratorTest < ActiveSupport::TestCase
     assert_equal(-50, adjustment.amount)
   end
 
-  test "capped project: raises once the cap is fully consumed instead of producing a $0 invoice" do
+  test "capped project: once the cap is fully consumed, generating again for just that project yields no invoice and a warning" do
     client = build_client
     contact = contact_for(client)
     project = client.projects.create!(name: "Capped", billing_mode: "capped", billing_amount: 100)
@@ -170,11 +170,39 @@ class InvoiceGeneratorTest < ActiveSupport::TestCase
     project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1) # exactly consumes the cap
 
     InvoiceGenerator.new(client: client, contact: contact).generate!
-    project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+    entry = project.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
 
-    assert_raises(ArgumentError) do
-      InvoiceGenerator.new(client: client, contact: contact).generate!
-    end
+    generator = InvoiceGenerator.new(client: client, contact: contact)
+    invoice = generator.generate!
+
+    assert_nil invoice
+    assert_equal 1, generator.warnings.size
+    assert_includes generator.warnings.first, "billing cap"
+    assert_nil entry.reload.invoice_id # left unbilled, not silently consumed
+  end
+
+  test "capped project: an exhausted cap skips just that project, not the client's whole invoice" do
+    client = build_client
+    contact = contact_for(client)
+
+    capped = client.projects.create!(name: "Capped", billing_mode: "capped", billing_amount: 100)
+    capped.rates.create!(rate: 100)
+    capped.time_entries.create!(user: users(:admin), date: Date.current, hours: 1) # exactly consumes the cap
+    InvoiceGenerator.new(client: client, contact: contact).generate!
+    overage_entry = capped.time_entries.create!(user: users(:admin), date: Date.current, hours: 1)
+
+    hourly = client.projects.create!(name: "Hourly")
+    hourly.rates.create!(rate: 50)
+    hourly.time_entries.create!(user: users(:admin), date: Date.current, hours: 2)
+
+    generator = InvoiceGenerator.new(client: client, contact: contact)
+    invoice = generator.generate!
+
+    assert_not_nil invoice
+    assert_equal 100, invoice.total # only the hourly project's $100 (2h * $50) — capped skipped
+    assert_equal 1, generator.warnings.size
+    assert_includes generator.warnings.first, "Capped"
+    assert_nil overage_entry.reload.invoice_id
   end
 
   test "a single client invoice correctly partitions an hourly project, a fixed project, and charge-code entries" do

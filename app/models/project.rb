@@ -59,12 +59,14 @@ class Project < ApplicationRecord
     quoted  = reference.estimate_line_items.where.not(task_id: nil).index_by(&:task_id)
     current = estimated_tasks.index_by(&:id)
 
-    added   = current.values.reject { |t| quoted.key?(t.id) }.map(&:title)
+    # All three consistently identify a task as "Group · Task" — matches how it's actually
+    # labeled on the estimate/invoice, and how the quoted line's own #description was built.
+    added   = current.values.reject { |t| quoted.key?(t.id) }.map { |t| "#{t.task_group.title} · #{t.title}" }
     removed = quoted.values.reject { |item| current.key?(item.task_id) }.map(&:description)
     changed = current.values.filter_map do |t|
       item = quoted[t.id]
       next unless item && item.hours != t.estimated_hours
-      "#{t.title} (#{item.hours}h quoted → #{t.estimated_hours}h now)"
+      "#{t.task_group.title} · #{t.title} (#{item.hours}h quoted → #{t.estimated_hours}h now)"
     end
 
     return nil if added.empty? && removed.empty? && changed.empty?

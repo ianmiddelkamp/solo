@@ -69,28 +69,34 @@ class InvoicesController < ApplicationController
     client = current_business_profile.clients.find(params[:client_id])
     contact = resolve_contact(client, params[:contact_id])
 
+    generator = InvoiceGenerator.new(
+      client: client,
+      contact: contact,
+      start_date: params[:start_date],
+      end_date: params[:end_date],
+      time_entry_ids: params[:time_entry_ids]
+    )
+
     begin
-      invoice = InvoiceGenerator.new(
-        client: client,
-        contact: contact,
-        start_date: params[:start_date],
-        end_date: params[:end_date],
-        time_entry_ids: params[:time_entry_ids]
-      ).generate!
+      invoice = generator.generate!
     rescue ArgumentError => e
       render json: { error: e.message }, status: :unprocessable_entity
       return
     end
 
     if invoice.nil?
-      render json: { error: "No unbilled time entries found for this client in the selected period." },
-             status: :unprocessable_entity
+      # generator.warnings can be non-empty here too — e.g. the only project with unbilled work
+      # was a capped project that had already exhausted its cap, so there's nothing left to bill.
+      message = generator.warnings.presence&.join(" ") ||
+        "No unbilled time entries found for this client in the selected period."
+      render json: { error: message }, status: :unprocessable_entity
       return
     end
 
     regenerate_invoice_pdf!(invoice)
 
-    render json: invoice_json(invoice).merge(warnings: fixed_price_quote_warnings(invoice)), status: :created
+    warnings = generator.warnings + fixed_price_quote_warnings(invoice)
+    render json: invoice_json(invoice).merge(warnings: warnings), status: :created
   end
 
   def update

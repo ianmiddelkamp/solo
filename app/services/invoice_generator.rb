@@ -1,4 +1,8 @@
 class InvoiceGenerator
+  # Populated during generate! with one message per capped project skipped for having already
+  # reached its cap — read after calling generate! (empty array if nothing was skipped).
+  attr_reader :warnings
+
   def initialize(client:, contact:, start_date: nil, end_date: nil, time_entry_ids: nil)
     @client          = client
     @contact         = contact
@@ -6,6 +10,7 @@ class InvoiceGenerator
     @end_date        = end_date
     @time_entry_ids  = time_entry_ids
     @tax_rate        = @client.business_profile.tax_rate || 0
+    @warnings        = []
   end
 
   def generate!
@@ -38,7 +43,15 @@ class InvoiceGenerator
         elsif project.fixed_price?
           bill_fixed_price(invoice, entries, project)
         elsif project.capped?
-          bill_capped(invoice, entries, project)
+          # A client invoice bundles every one of the client's projects together — one capped
+          # project having already exhausted its cap shouldn't block billing everything else
+          # that's ready to go. Skip just this project (its entries stay unbilled) and surface it
+          # as a warning instead of aborting the whole invoice.
+          begin
+            bill_capped(invoice, entries, project)
+          rescue ArgumentError => e
+            @warnings << e.message
+          end
         else
           bill_hourly(invoice, entries, project: project)
         end

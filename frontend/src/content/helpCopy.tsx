@@ -97,9 +97,12 @@ export const projectBillingHelp = {
         for the project includes the full amount regardless of hours logged, and generating again
         won't bill it a second time. <strong>Capped</strong> bills actual hours as usual but never
         lets the pre-tax subtotal exceed the agreed ceiling; time pushed over the cap is written
-        off (not carried to a future invoice), and once the cap is fully used, generating again
-        raises an error instead of a $0 invoice. The cap only bounds billable work — tax is still
-        calculated on top and can push the client's total above the cap number.
+        off (not carried to a future invoice), and once the cap is fully used, that project is
+        skipped rather than producing a $0 line — a client invoice bundles every one of a
+        client's projects together, so an exhausted cap on one project doesn't block billing the
+        others; you'll see a warning naming which project was skipped. The cap only bounds
+        billable work — tax is still calculated on top and can push the client's total above the
+        cap number.
       </p>
       <p>
         For both Fixed Price and Capped, the <strong>Billing Amount is a lifetime total for the
