@@ -10,6 +10,8 @@ import PaymentDialog from './dialogs/PaymentDialog';
 import ContactPickerDialog from '../../components/ContactPickerDialog';
 import ActionsMenu, { type ActionMenuItem } from '../../components/ActionsMenu';
 import ScaleToFit from '../../components/ScaleToFit';
+import HelpButton from '../../components/HelpButton';
+import { invoiceContactsHelp } from '../../content/helpCopy';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -194,6 +196,7 @@ export default function InvoiceDetail() {
           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[invoice.status]}`}>
             {invoice.status}
           </span>
+          <HelpButton title={invoiceContactsHelp.title}>{invoiceContactsHelp.content}</HelpButton>
         </div>
         <div className="md:hidden">
           <ActionsMenu items={actionItems} />

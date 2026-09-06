@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getHstReturn, updateHstReturn } from '../../api/hstReturns';
+import HelpButton from '../../components/HelpButton';
+import { hstReturnDetailHelp } from '../../content/helpCopy';
 import type { HstReturn } from '../../types';
 
 function fmt(n: number | null | undefined) {
@@ -73,6 +75,7 @@ export default function HstReturnDetail() {
         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[r.status]}`}>
           {r.status}
         </span>
+        <HelpButton title={hstReturnDetailHelp.title}>{hstReturnDetailHelp.content}</HelpButton>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{error}</div>}

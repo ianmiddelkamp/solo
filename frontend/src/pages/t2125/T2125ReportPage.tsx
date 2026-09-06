@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getT2125Report } from '../../api/t2125';
+import HelpButton from '../../components/HelpButton';
+import { t2125ReportHelp } from '../../content/helpCopy';
 import type { T2125Report } from '../../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -53,7 +55,10 @@ export default function T2125ReportPage() {
     <div className="p-8 max-w-2xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">T2125 Report</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">T2125 Report</h1>
+            <HelpButton title={t2125ReportHelp.title}>{t2125ReportHelp.content}</HelpButton>
+          </div>
           <p className="text-sm text-gray-500 mt-1">Statement of Business Activities</p>
         </div>
         <div className="flex items-center gap-3">

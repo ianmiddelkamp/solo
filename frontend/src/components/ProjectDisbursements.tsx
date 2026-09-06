@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '../api/disbursements';
 import { confirm } from '../services/dialog';
+import HelpButton from './HelpButton';
+import { disbursementsHelp } from '../content/helpCopy';
 import type { Disbursement } from '../types';
 
 const EMPTY = { description: '', amount: '', incurred_on: '' };
@@ -67,7 +69,10 @@ export default function ProjectDisbursements({ projectId }: { projectId: number 
   return (
     <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">Disbursements</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-800">Disbursements</h3>
+          <HelpButton title={disbursementsHelp.title}>{disbursementsHelp.content}</HelpButton>
+        </div>
         {!adding && (
           <button
             onClick={() => setAdding(true)}
