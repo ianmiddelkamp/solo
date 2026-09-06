@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
+import HelpButton from '../../components/HelpButton';
+import { ccaScheduleHelp } from '../../content/helpCopy';
 import { getCcaAssets, createCcaAsset, updateCcaAsset, deleteCcaAsset } from '../../api/ccaAssets';
 import { confirm } from '../../services/dialog';
 import type { CcaAsset } from '../../types';
@@ -112,7 +114,11 @@ export default function CcaSchedulePage() {
 
   return (
     <div className="p-8 max-w-5xl">
-      <PageHeader title="CCA Schedule" action={{ label: 'Add Asset', onClick: startNew }} />
+      <PageHeader
+        title="CCA Schedule"
+        action={{ label: 'Add Asset', onClick: startNew }}
+        help={<HelpButton title={ccaScheduleHelp.title}>{ccaScheduleHelp.content}</HelpButton>}
+      />
       <p className="text-sm text-gray-500 mb-6">
         Capital Cost Allowance (Schedule 8, T2125) — track depreciable business assets and calculate annual deductions.
       </p>

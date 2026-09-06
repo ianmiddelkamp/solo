@@ -160,6 +160,81 @@ export const timesheetFormHelp = {
   ),
 };
 
+export const ccaScheduleHelp = {
+  title: 'How CCA Works',
+  content: (
+    <>
+      <p>
+        <strong>UCC (Undepreciated Capital Cost)</strong> is what's left of an asset's value to
+        depreciate. <strong>UCC Opening</strong> is that balance at the start of the tax year you're
+        viewing; <strong>Additions</strong>/<strong>Disposals</strong> adjust it for costs added to
+        or amounts removed from the asset during that year.
+      </p>
+      <p>
+        In an asset's <strong>year of purchase</strong>, the CRA only allows half the normal rate —
+        this app applies that half-year rule for you automatically.
+      </p>
+      <p>
+        <strong>Important:</strong> UCC Opening, Additions, and Disposals are single values stored
+        per asset — switching the Tax Year dropdown recalculates the deduction using whatever is
+        currently saved, it does <strong>not</strong> automatically roll the balance forward from a
+        prior year. Before working in a new tax year, update each asset's UCC Opening yourself to
+        last year's closing balance (last year's UCC Opening + Additions − Disposals − last year's
+        CCA deduction).
+      </p>
+    </>
+  ),
+};
+
+export const homeOfficeHelp = {
+  title: 'Home Office Deduction',
+  content: (
+    <>
+      <p>
+        The CRA lets you determine your business-use percentage either by{' '}
+        <strong>room count</strong> (office rooms ÷ total rooms) or{' '}
+        <strong>square footage</strong> (office sq ft ÷ total sq ft) — pick whichever method you
+        actually use for your own records.
+      </p>
+      <p>
+        The deduction is: monthly home costs × 12 × your business-use percentage. For{' '}
+        <strong>Rent / Mortgage interest</strong>, only enter the <strong>interest</strong> portion
+        of a mortgage payment — mortgage principal repayment isn't deductible.
+      </p>
+      <p>
+        Not enforced by this app: the CRA doesn't let a home office deduction create or increase a
+        business loss (it can only reduce net income to zero), and any unused portion carries
+        forward to next year. This app doesn't track that carry-forward — keep your own note if it
+        applies to you.
+      </p>
+    </>
+  ),
+};
+
+export const t2125ReportHelp = {
+  title: 'About This Report',
+  content: (
+    <>
+      <p>
+        This is a <strong>read-only summary</strong> mirroring the CRA's T2125 form and its line
+        numbers, assembled automatically from your Invoices, Expenses, CCA Schedule, and Home
+        Office settings for the selected year. It's a reference to help you fill out your actual
+        return, not a filing itself.
+      </p>
+      <p>
+        <strong>Heads up:</strong> "Meals &amp; Entertainment (50%)" is labeled that way because the
+        CRA only lets you deduct half of those costs — but this report shows the{' '}
+        <strong>full amount</strong> you logged as an expense, not the halved figure. Reduce that
+        category by half yourself before using it on your actual return.
+      </p>
+      <p>
+        HST collected is subtracted from gross revenue because it was never your income — it was
+        always the CRA's money, just collected through you.
+      </p>
+    </>
+  ),
+};
+
 export const taskGroupsHelp = {
   title: 'How Task Groups Work',
   content: (
