@@ -272,6 +272,44 @@ export const estimateDetailHelp = {
   ),
 };
 
+export const timerPageHelp = {
+  title: 'How the Timer Attributes Time',
+  content: (
+    <>
+      <p>
+        A running timer is <strong>one continuous session linked to a single task</strong> (or no
+        task at all). When you click <strong>Save time entry</strong>, the entire elapsed time —
+        from when you hit Start to right now — becomes one time entry, credited entirely to
+        whichever task is currently linked. Starting with a task selected marks it{' '}
+        <strong>In Progress</strong> immediately; saving offers to mark it <strong>Done</strong>.
+      </p>
+      <p>
+        Selecting a <strong>different</strong> task while the timer is already running asks how to
+        handle it — and the two real options behave very differently:
+      </p>
+      <ul className="list-disc pl-5 space-y-1">
+        <li><strong>Keep current task:</strong> cancels the switch, nothing changes.</li>
+        <li>
+          <strong>Replace current task:</strong> re-links this <em>same</em> running session to the
+          new task. This does <strong>not</strong> split the time — every second already elapsed,
+          plus everything from now until you stop, will be attributed entirely to the new task once
+          saved. None of it goes to the task you switched away from.
+        </li>
+        <li>
+          <strong>Start new session:</strong> closes out the current elapsed time as a finished
+          entry for the <em>old</em> task, then starts a brand-new timer at 0:00 for the new one.
+          This is the option to use if you actually want the time split correctly between two
+          tasks.
+        </li>
+      </ul>
+      <p>
+        If no timer is running yet, selecting a task just stages it to start with next (or starts
+        one immediately, after a quick confirmation).
+      </p>
+    </>
+  ),
+};
+
 export const taskGroupsHelp = {
   title: 'How Task Groups Work',
   content: (
@@ -287,10 +325,6 @@ export const taskGroupsHelp = {
         plan, not a measurement. <strong>Actual</strong> only appears once time has actually
         been logged against that task (via the timer or a timesheet entry), and is computed
         automatically — you can't edit it directly.
-      </p>
-      <p>
-        The small circular button next to a task's title ("Select for timer") is what links
-        that task to the timer on the Timer page, so time you track gets attributed to it.
       </p>
       <p>
         "Import tasks from Statement of Work" (SOW Import) uses AI to read an uploaded
