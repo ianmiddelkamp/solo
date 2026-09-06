@@ -81,7 +81,10 @@ class ProjectsController < ApplicationController
   end
 
   def project_params
-    params.require(:project).permit(:name, :client_id, :description)
+    params.require(:project).permit(
+      :name, :client_id, :description,
+      :billing_mode, :billing_amount, :show_task_breakdown, :show_hours, :show_actual_hours
+    )
   end
 
   def archive_params

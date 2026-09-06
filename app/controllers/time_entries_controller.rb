@@ -10,7 +10,7 @@ class TimeEntriesController < ApplicationController
           project: { only: %i[id name client_id], include: { client: { only: %i[id name] } } },
           charge_code: { only: %i[id code description] },
           client: { only: %i[id name] },
-          invoice_line_item: { include: { invoice: { methods: :number } } }
+          invoice: { only: %i[id], methods: :number }
         }
       )
   end
@@ -35,7 +35,7 @@ class TimeEntriesController < ApplicationController
         entry.project&.name || entry.charge_code&.code,
         entry.task&.title,
         entry.description,
-        entry.invoice_line_item&.invoice&.number || "Unbilled"
+        entry.invoice&.number || "Unbilled"
       ]
     end
 
@@ -114,15 +114,15 @@ class TimeEntriesController < ApplicationController
       scope = scope.where.not(project_id: nil) if params[:hide_charge_codes] == "true"
 
       if params[:status] == "unbilled"
-        scope = scope.left_outer_joins(:invoice_line_item).where(invoice_line_items: { id: nil })
+        scope = scope.where(invoice_id: nil)
       elsif params[:status] == "billed"
-        scope = scope.joins(:invoice_line_item)
+        scope = scope.where.not(invoice_id: nil)
       end
 
       scope
     end
 
-    entries.includes(:task, :charge_code, :client, invoice_line_item: :invoice, project: :client).order(date: :desc)
+    entries.includes(:task, :charge_code, :client, :invoice, project: :client).order(date: :desc)
   end
 
   def set_project
