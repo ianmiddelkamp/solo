@@ -1,0 +1,152 @@
+<%#
+  Shared line-items table for both invoice.html.erb and estimate.html.erb.
+
+  Locals:
+    items:         the document's line items (InvoiceLineItem or EstimateLineItem records)
+    document_type: :invoice | :estimate
+    project:       the single Project for an estimate (always one project); ignored for an
+                    invoice, which instead groups items by each item's own .project (a client
+                    invoice can span several projects, each with its own display settings, plus
+                    project-less charge-code entries)
+
+  Branches on show_task_breakdown / show_hours / show_actual_hours (defaulting to true for any
+  group with no project, e.g. charge-code entries) to decide grouping and columns. Disbursements
+  and charge-code lines are always itemized regardless of these settings — they're not
+  task-based, and disbursements carry tax_rate: 0, which a consolidated blend would destroy.
+%>
+<% require "ostruct"
+   is_estimate = document_type == :estimate
+
+   groups =
+     if is_estimate
+       [[project, items.to_a]]
+     else
+       items.group_by(&:project).to_a
+     end
+
+   # A single project's setting decides the columns when the whole document is that one
+   # project (the overwhelming common case — a single-project invoice, or any estimate).
+   # A client invoice spanning several projects with genuinely differing settings falls back
+   # to showing full detail rather than guessing which project's preference should win.
+   projects_involved = groups.map(&:first).compact.uniq
+   uniform_project    = projects_involved.size <= 1 ? projects_involved.first : nil
+   show_hours         = uniform_project.nil? || uniform_project.show_hours
+
+   # Collapses each Task Group's per-task lines into one summary row per group, used when a
+   # project has "show task breakdown" turned off — named after the group rather than a bare
+   # "N tasks" count, since the group name is what the client actually recognizes. Hours/amount
+   # are summed per group; a blended rate isn't meaningful once tasks at different rates are
+   # combined, so the rate column is left blank (em-dash) for summary rows. A line with no task
+   # at all (Fixed Price's adjustment line, or its single "· Fixed price" line) has no group to
+   # fold into, so it's always left itemized on its own regardless of this setting.
+   consolidate_estimate_items = ->(task_items) {
+     groupable, ungroupable = task_items.partition { |i| i.task&.task_group }
+     next ungroupable if groupable.empty?
+     grouped = groupable.group_by { |i| i.task.task_group }
+                        .sort_by { |group, _| group.position }
+                        .map do |group, items_in_group|
+       total_hours  = items_in_group.sum { |i| i.display_hours }
+       total_amount = items_in_group.sum { |i| i.display_amount }
+       OpenStruct.new(
+         description: group.title,
+         hours: total_hours, display_hours: total_hours, rate: nil,
+         amount: total_amount, display_amount: total_amount,
+         disbursement_id: nil, done?: false
+       )
+     end
+     grouped + ungroupable
+   }
+
+   consolidate_invoice_items = ->(time_items, proj) {
+     groupable, ungroupable = time_items.partition(&:effective_task)
+     next ungroupable if groupable.empty?
+     grouped = groupable.group_by { |i| i.effective_task.task_group }
+                        .sort_by { |group, _| group.position }
+                        .map do |group, items_in_group|
+       OpenStruct.new(
+         description: group.title,
+         hours: items_in_group.sum(&:hours), rate: nil, amount: items_in_group.sum(&:amount),
+         kind: "time", project: proj, time_entry: nil
+       )
+     end
+     grouped + ungroupable
+   }
+%>
+<table>
+  <thead>
+    <tr>
+      <% if is_estimate %>
+        <th>Description</th>
+        <% if show_hours %>
+          <th class="right">Est. Hours</th>
+          <th class="right">Rate</th>
+        <% end %>
+        <th class="right">Amount</th>
+      <% else %>
+        <th>Date</th>
+        <th>Project</th>
+        <th>Description</th>
+        <% if show_hours %>
+          <th class="right">Hours</th>
+          <th class="right">Rate</th>
+        <% end %>
+        <th class="right">Amount</th>
+      <% end %>
+    </tr>
+  </thead>
+  <tbody>
+    <% groups.each do |proj, group_items| %>
+      <%
+        show_task_breakdown = proj.nil? || proj.show_task_breakdown
+
+        if is_estimate
+          disbursement_items, task_items = group_items.partition { |i| i.disbursement_id.present? }
+          rows = show_task_breakdown ? task_items : consolidate_estimate_items.call(task_items)
+          rows += disbursement_items
+        else
+          charge_code_items, project_items = group_items.partition { |i| i.time_entry&.charge_code_id.present? }
+          fixed_items, time_items = project_items.partition { |i| i.kind != "time" }
+          rows = show_task_breakdown ? time_items : consolidate_invoice_items.call(time_items, proj)
+          rows += fixed_items + charge_code_items
+        end
+      %>
+      <% rows.each do |item| %>
+        <% if is_estimate %>
+          <% done = item.respond_to?(:done?) && item.done? %>
+          <tr>
+            <td>
+              <%= item.description.presence || "—" %>
+              <% if done %>
+                <span style="display:inline-block; margin-left:6px; padding:1px 5px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; background:#dcfce7; color:#15803d; border-radius:3px;">Completed</span>
+              <% end %>
+            </td>
+            <% if show_hours %>
+              <td class="right">
+                <% if item.disbursement_id.present? %>
+                  &mdash;
+                <% elsif done && item.respond_to?(:display_hours) && item.display_hours != item.hours %>
+                  <span style="color:#6b7280;">est. <%= "%.2f" % item.hours %> &rarr;</span> <strong><%= "%.2f" % item.display_hours %></strong>
+                <% else %>
+                  <%= "%.2f" % item.hours %>
+                <% end %>
+              </td>
+              <td class="right"><%= (item.disbursement_id.present? || item.rate.blank?) ? "&mdash;".html_safe : "$#{"%.2f" % item.rate}" %></td>
+            <% end %>
+            <td class="right">$<%= "%.2f" % (item.respond_to?(:display_amount) ? item.display_amount : item.amount) %></td>
+          </tr>
+        <% else %>
+          <tr>
+            <td><%= item.time_entry&.date&.strftime("%d %b %Y") || "—" %></td>
+            <td><%= item.project&.name || item.time_entry&.charge_code&.code || "—" %></td>
+            <td><%= item.description.presence || "—" %></td>
+            <% if show_hours %>
+              <td class="right"><%= item.kind == "time" ? "%.2f" % item.hours : "&mdash;".html_safe %></td>
+              <td class="right"><%= item.rate.present? ? "$#{"%.2f" % item.rate}" : "&mdash;".html_safe %></td>
+            <% end %>
+            <td class="right">$<%= "%.2f" % item.amount %></td>
+          </tr>
+        <% end %>
+      <% end %>
+    <% end %>
+  </tbody>
+</table>
