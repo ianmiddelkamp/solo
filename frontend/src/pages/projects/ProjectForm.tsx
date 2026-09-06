@@ -5,9 +5,10 @@ import { downloadExport } from '../../utils/export';
 import ExportMenu from '../../components/ExportMenu';
 import { getClients } from '../../api/clients';
 import { getProjectRate, setProjectRate, getClientRate } from '../../api/rates';
+import { getEstimates } from '../../api/estimates';
 import PageHeader from '../../components/PageHeader';
 import HelpButton from '../../components/HelpButton';
-import { projectRateHelp } from '../../content/helpCopy';
+import { projectRateHelp, projectBillingHelp } from '../../content/helpCopy';
 import TaskBoard from '../../components/TaskBoard';
 import ProjectDisbursements from '../../components/ProjectDisbursements';
 import ProjectEstimates from '../../components/ProjectEstimates';
@@ -16,7 +17,22 @@ import { getAttachments } from '../../api/attachments';
 import type { Client, Attachment } from '../../types';
 import { confirm } from '../../services/dialog';
 
-const EMPTY = { name: '', client_id: '', description: '' };
+const BILLING_MODE_OPTIONS = [
+  { value: 'hourly', label: 'Hourly' },
+  { value: 'fixed_price', label: 'Fixed Price' },
+  { value: 'capped', label: 'Capped' },
+];
+
+const EMPTY = {
+  name: '',
+  client_id: '',
+  description: '',
+  billing_mode: 'hourly',
+  billing_amount: '',
+  show_task_breakdown: true,
+  show_hours: true,
+  show_actual_hours: true,
+};
 
 export default function ProjectForm() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +45,7 @@ export default function ProjectForm() {
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [archived, setArchived] = useState(false)
 
   const [summaryPurpose, setSummaryPurpose] = useState(AI_SUMMARY_PURPOSES[0].key);
@@ -36,6 +53,7 @@ export default function ProjectForm() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryAttachments, setSummaryAttachments] = useState<Attachment[]>([]);
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<Set<number>>(new Set());
+  const [latestEstimateTotal, setLatestEstimateTotal] = useState<number | null>(null);
 
   const detailsRef = useRef<HTMLDivElement>(null);
   const tasksRef = useRef<HTMLDivElement>(null);
@@ -56,7 +74,16 @@ export default function ProjectForm() {
       getProject(projectId)
         .then((p) => {
           if (p) {
-            setForm({ name: p.name, client_id: String(p.client_id), description: p.description || '' });
+            setForm({
+              name: p.name,
+              client_id: String(p.client_id),
+              description: p.description || '',
+              billing_mode: p.billing_mode || 'hourly',
+              billing_amount: p.billing_amount != null ? String(p.billing_amount) : '',
+              show_task_breakdown: p.show_task_breakdown,
+              show_hours: p.show_hours,
+              show_actual_hours: p.show_actual_hours,
+            });
             setArchived(p.is_archived)
           }
         })
@@ -64,6 +91,14 @@ export default function ProjectForm() {
 
       getProjectRate(projectId)
         .then((r) => setRateValue(r?.rate != null ? String(r.rate) : ''))
+        .catch(() => { });
+
+      getEstimates(projectId)
+        .then((estimates) => {
+          // estimates come back ordered oldest → newest
+          const latest = estimates?.[estimates.length - 1];
+          if (latest?.total != null) setLatestEstimateTotal(latest.total);
+        })
         .catch(() => { });
 
       loadSummaryAttachments(projectId);
@@ -93,17 +128,34 @@ export default function ProjectForm() {
     }
   }
 
+  function handleCheckboxChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const { name, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: checked }));
+  }
+
+  function useLatestEstimateTotal() {
+    if (latestEstimateTotal != null) {
+      setForm((prev) => ({ ...prev, billing_amount: String(latestEstimateTotal) }));
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
+      const payload = {
+        ...form,
+        client_id: Number(form.client_id),
+        billing_amount: form.billing_amount !== '' ? parseFloat(form.billing_amount) : null,
+      };
+
       let pid: number;
       if (isEdit && projectId) {
-        await updateProject(projectId, { ...form, client_id: Number(form.client_id) });
+        await updateProject(projectId, payload);
         pid = projectId;
       } else {
-        const created = await createProject({ ...form, client_id: Number(form.client_id) });
+        const created = await createProject(payload);
         if (!created) return;
         pid = created.id;
       }
@@ -112,7 +164,17 @@ export default function ProjectForm() {
         await setProjectRate(pid, parseFloat(rate));
       }
 
-      navigate('/projects');
+      if (isEdit) {
+        // Stay on the page — the sections below (Task Groups, Estimates, etc.) are exactly
+        // what someone editing a project wants to keep working in, not something to bounce
+        // away from on every save.
+        setJustSaved(true);
+        setTimeout(() => setJustSaved(false), 2000);
+      } else {
+        // A brand-new project has none of those sections until it exists, so land on its own
+        // edit page rather than the list.
+        navigate(`/projects/${pid}/edit`);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -244,6 +306,92 @@ export default function ProjectForm() {
               />
             </div>
 
+            <div className="border border-gray-200 rounded-md p-4 space-y-4">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                Billing
+                <HelpButton title={projectBillingHelp.title}>{projectBillingHelp.content}</HelpButton>
+              </label>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Billing Mode</label>
+                <select
+                  name="billing_mode"
+                  value={form.billing_mode}
+                  onChange={handleChange}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  {BILLING_MODE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {form.billing_mode !== 'hourly' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    {form.billing_mode === 'fixed_price' ? 'Fixed Price Total ($)' : 'Billing Cap ($)'}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      name="billing_amount"
+                      value={form.billing_amount}
+                      onChange={handleChange}
+                      min="0"
+                      step="0.01"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    {latestEstimateTotal != null && (
+                      <button
+                        type="button"
+                        onClick={useLatestEstimateTotal}
+                        className="whitespace-nowrap text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                      >
+                        Use latest estimate (${latestEstimateTotal.toFixed(2)})
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    name="show_task_breakdown"
+                    checked={form.show_task_breakdown}
+                    onChange={handleCheckboxChange}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Show task breakdown on documents
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    name="show_hours"
+                    checked={form.show_hours}
+                    onChange={handleCheckboxChange}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Show hours/rate column
+                </label>
+                <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${form.billing_mode === 'fixed_price' ? 'text-gray-400' : 'text-gray-700'}`}>
+                  <input
+                    type="checkbox"
+                    name="show_actual_hours"
+                    checked={form.billing_mode === 'fixed_price' ? false : form.show_actual_hours}
+                    disabled={form.billing_mode === 'fixed_price'}
+                    onChange={handleCheckboxChange}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                  />
+                  Show actual hours once a task is done
+                  {form.billing_mode === 'fixed_price' && (
+                    <span className="text-xs">— not applicable to Fixed Price, which always bills the agreed total</span>
+                  )}
+                </label>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
@@ -265,11 +413,12 @@ export default function ProjectForm() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/projects')}
+                onClick={() => navigate(-1)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
               >
                 Cancel
               </button>
+              {justSaved && <span className="text-sm text-green-600">Saved</span>}
             </div>
           </form>
         </div>

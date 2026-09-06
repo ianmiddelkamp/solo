@@ -42,6 +42,11 @@ export interface Project {
   client?: Client;
   description?: string | null;
   current_rate?: number | null;
+  billing_mode: string;
+  billing_amount?: number | null;
+  show_task_breakdown: boolean;
+  show_hours: boolean;
+  show_actual_hours: boolean;
 }
 
 export interface Task {
@@ -77,8 +82,12 @@ export interface InvoiceLineItemDetail {
   rate: number;
   amount: number;
   tax_rate: string | null;
+  kind: string; // "time" | "fixed" | "adjustment"
+  project?: Pick<Project, 'id' | 'name' | 'show_task_breakdown' | 'show_hours'> | null;
+  task?: Pick<Task, 'id' | 'title'> & { task_group?: Pick<TaskGroup, 'id' | 'title' | 'position'> };
   time_entry?: {
     date: string;
+    task?: Pick<Task, 'id' | 'title'> & { task_group?: Pick<TaskGroup, 'id' | 'title' | 'position'> };
     project?: { name: string };
     charge_code?: { code: string };
   };
@@ -99,6 +108,9 @@ export interface Invoice {
   paid_at?: string | null;
   amount_paid:  number | null;
   outstanding: number | null;
+  // Only ever present on the response to POST /invoices — informational, non-blocking notices
+  // (e.g. a Fixed Price project billed a different task breakdown than what was quoted).
+  warnings?: string[];
 }
 
 export interface PaymentEntry {
@@ -128,7 +140,7 @@ export interface TimeEntry {
   task?: Pick<Task, 'id' | 'title'>;
   charge_code?: ChargeCode;
   client?: Client;
-  invoice_line_item?: InvoiceLineItem;
+  invoice?: Pick<Invoice, 'id' | 'number'>;
 }
 
 export interface TimerSession {
@@ -189,9 +201,14 @@ export interface EstimateLineItem {
   rate: number;
   amount: number;
   tax_rate: string | null;
-  task?: Pick<Task, 'id' | 'status' | 'actual_hours'>;
+  task?: Pick<Task, 'id' | 'status' | 'actual_hours'> & { task_group?: Pick<TaskGroup, 'id' | 'title' | 'position'> };
   disbursement?: Pick<Disbursement, 'id' | 'description'>;
 }
+
+export type BillingProject = Pick<
+  Project,
+  'billing_mode' | 'billing_amount' | 'show_task_breakdown' | 'show_hours' | 'show_actual_hours'
+>;
 
 export interface EstimateChanges {
   added?: { description: string; hours: string }[];
